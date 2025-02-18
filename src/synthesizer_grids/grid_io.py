@@ -41,7 +41,7 @@ from synthesizer.photoionisation import Ions
 from synthesizer.sed import Sed
 from synthesizer.units import has_units
 from tqdm import tqdm
-from unyt import dimensionless, unyt_array
+from unyt import dimensionless, erg, s, unyt_array
 
 from synthesizer_grids._version import __version__ as grids_version
 
@@ -494,6 +494,9 @@ class GridFile:
                 log_on_read=False,
             )
 
+        # calcualte bolometric luminosity and add
+        self.add_bolometric_luminosity()
+
     def add_specific_ionising_lum(self, ions=("HI", "HeII"), limit=100):
         """
         Calculate the specific ionising photon luminosity for different ions.
@@ -533,7 +536,7 @@ class GridFile:
         # Get wavelength grid
         lam = self.read_dataset("spectra/wavelength")
 
-        # Loop over grid points and calculate Q and store it
+        # Loop over grid points, calculate the ionising luminosity and store it
         for indices in tqdm(index_list):
             indices = tuple(indices)
 
@@ -564,6 +567,68 @@ class GridFile:
                 "production rate grid, [age, Z]",
                 log_on_read=False,
             )
+
+        self._close_file()
+
+    def add_bolometric_luminosity(self):
+        """
+        Calculate the specific bolometric luminosity for each spectra.
+
+        This will also write them to the file.
+
+        This can only be used after the spectra arrays have been written out!
+
+        Args:
+            ions (list)
+                A list of ions to calculate Q for.
+            limit (float/int)
+                An upper bound on the number of subintervals
+                used in the integration adaptive algorithm.
+
+        """
+        # Open the file
+        self._open_file()
+
+        # Get the properties of the grid including the dimensions etc.
+        (
+            _,
+            shape,
+            _,
+            _,
+            _,
+            index_list,
+        ) = self.get_grid_properties()
+
+        self._close_file()
+
+        # output array
+        bolometric_luminosities = np.zeros(shape)
+
+        # Get wavelength grid
+        lam = self.read_dataset("spectra/wavelength")
+
+        # Loop over grid points calculate bolometric luminosity and store it
+        for indices in tqdm(index_list):
+            indices = tuple(indices)
+
+            # Get incident spectrum
+            lnu = self.read_dataset("spectra/incident", indices=indices)
+
+            # Define sed
+            sed = Sed(lam, lnu)
+
+            # Store the results at the correct indices
+            bolometric_luminosities[indices] = np.log10(
+                sed.bolometric_luminosity.to("erg/s").value
+            )
+
+        # Loop over the iopns and write out their arrays
+        self.write_dataset(
+            "log10bolometric_luminosity",
+            bolometric_luminosities * erg / s,
+            "Bolometric luminosity grid, [age, Z]",
+            log_on_read=False,
+        )
 
         self._close_file()
 
