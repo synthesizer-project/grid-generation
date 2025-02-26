@@ -531,14 +531,14 @@ def add_lines(
     # ... but only save continuum values if spectra are provided.
     if calculate_continuum:
         continuum_quantities = [
-            'transmitted_continuum',
+            'transmitted',
             'nebular_continuum',
             'total_continuum']
 
         spectra_ = {}
 
         # Calculate transmitted_contiuum
-        spectra_["transmitted_continuum"] = spectra["transmitted"]
+        spectra_["transmitted"] = spectra["transmitted"]
 
         # Calculate nebular_contiuum
         spectra_["nebular_continuum"] = (
@@ -841,3 +841,4 @@ if __name__ == "__main__":
             spectra,
             line_type="linelist",
         )
+        print('Added lines')
