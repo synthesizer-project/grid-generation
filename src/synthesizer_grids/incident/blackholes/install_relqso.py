@@ -24,7 +24,6 @@ from synthesizer_grids.parser import Parser
 sys.path.append("RELAGN/src/python_version")
 
 if __name__ == "__main__":
-
     # Import relagn module
     from relagn import relagn  # noqa: E402
 
@@ -37,22 +36,22 @@ if __name__ == "__main__":
         "accretion_rate_eddington",
         "spin",
         "cosine_inclination",
-        ]
+    ]
 
     axes_descriptions = {
         "mass": "blackhole mass",
-        "accretion_rate_eddington":
-        "BH accretion rate / Edding accretion rate [LEdd=eta MdotEdd c^2]",
+        "accretion_rate_eddington": "BH accretion rate / Eddington accretion"
+        " rate [LEdd=eta MdotEdd c^2]",
         "cosine_inclination": "cosine of the inclination",
         "spin": "dimensionless spin",
-        }
+    }
 
     axes_units = {
         "mass": Msun,
         "accretion_rate_eddington": None,
         "cosine_inclination": None,
         "spin": None,
-        }
+    }
 
     # Set up the command line arguments
     parser = Parser(description="RELQSO AGN model creation.")
@@ -64,46 +63,48 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # open the config file and extract parameters
-    with open(args.config_file, 'r') as file:
+    with open(args.config_file, "r") as file:
         parameters = yaml.safe_load(file)
 
-    model_name = parameters['model']
-    mass = 10**np.array(parameters['log10_mass'])
-    accretion_rate_eddington = 10**np.array(
-        parameters['log10_accretion_rate_eddington'])
-    spin = np.array(parameters['spin'])
+    model_name = parameters["model"]
+    mass = 10 ** np.array(parameters["log10_mass"])
+    accretion_rate_eddington = 10 ** np.array(
+        parameters["log10_accretion_rate_eddington"]
+    )
+    spin = np.array(parameters["spin"])
 
     # check whether isotropic or not
-    if isinstance(parameters['cosine_inclination'], float):
-        cosine_inclination = parameters['cosine_inclination']
-        axes_names.remove('cosine_inclination')
+    if isinstance(parameters["cosine_inclination"], float):
+        cosine_inclination = parameters["cosine_inclination"]
+        axes_names.remove("cosine_inclination")
         isotropic = True
     else:
-        cosine_inclination = np.array(parameters['cosine_inclination'])
+        cosine_inclination = np.array(parameters["cosine_inclination"])
         isotropic = False
 
     # Model defintion dictionary
     model = {
-        'name': model_name,
-        'type': 'agn',
-        'family': 'relqso',
+        "name": model_name,
+        "type": "agn",
+        "family": "relqso",
     }
 
     # Define the grid filename and path
     out_filename = f"{args.grid_dir}/{model_name}.hdf5"
 
     axes_values = {
-        'mass': mass,
-        'accretion_rate_eddington': accretion_rate_eddington,
-        'spin': spin,
+        "mass": mass,
+        "accretion_rate_eddington": accretion_rate_eddington,
+        "spin": spin,
     }
 
     if not isotropic:
-        axes_values['cosine_inclination'] = np.array(cosine_inclination)
+        axes_values["cosine_inclination"] = np.array(cosine_inclination)
 
     # the shape of the grid (useful for creating outputs)
     axes_shape = list(
-        [len(axes_values[axis_name]) for axis_name in axes_names])
+        [len(axes_values[axis_name]) for axis_name in axes_names]
+    )
 
     # define axes dictionary which is saved to the HDF5 file
     axes = {}
@@ -129,9 +130,7 @@ if __name__ == "__main__":
         for i2, accretion_rate_eddington_ in enumerate(
             axes_values["accretion_rate_eddington"]
         ):
-
             for i3, spin_ in enumerate(axes_values["spin"]):
-
                 if isotropic:
                     dagn = relagn(
                         a=spin_,
@@ -149,8 +148,8 @@ if __name__ == "__main__":
 
                 else:
                     for i4, cosine_inclination_ in enumerate(
-                            axes_values["cosine_inclination"]):
-
+                        axes_values["cosine_inclination"]
+                    ):
                         dagn = relagn(
                             a=spin_,
                             cos_inc=cosine_inclination_,
@@ -175,6 +174,7 @@ if __name__ == "__main__":
         descriptions=axes_descriptions,
         wavelength=lam,
         spectra={"incident": spec * erg / s / Hz},
+        weight="bolometric_luminosities",
     )
 
     # Include the specific ionising photon luminosity
