@@ -547,7 +547,7 @@ def add_lines(
         # Calculate total_continuum. Note this is not the same as adding
         #  nebular and transmitted since that would include emission lines.
         spectra_["total_continuum"] = (
-            spectra_["nebular_continuum"] + spectra_["transmitted_continuum"])
+            spectra_["nebular_continuum"] + spectra_["transmitted"])
 
         # Define output arrays
         for continuum_quantity in continuum_quantities:
