@@ -593,7 +593,7 @@ def add_lines(
                 # Calculate continuum luminosities. Units are erg/s/Hz.
                 if calculate_continuum:
                     for continuum_quantity in continuum_quantities:
-                        lines[continuum_quantity] = np.interp(
+                        lines[continuum_quantity][indices] = np.interp(
                             line_wavelengths,
                             lam,
                             spectra_[continuum_quantity][indices]
@@ -828,8 +828,6 @@ if __name__ == "__main__":
         else:
             lam = None
             spectra = None
-
-
 
         # Add lines
         add_lines(
