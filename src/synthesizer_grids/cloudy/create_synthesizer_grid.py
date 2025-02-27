@@ -435,13 +435,9 @@ def add_spectra(
         spectra[spec] *= erg / s / Hz
 
     # Write the spectra out
-    weight_var = getattr(incident_grid, "_weight_var", None)
-    if weight_var is None:
-        weight_var = "None"
     new_grid.write_spectra(
         spectra,
         wavelength=lam * Angstrom,
-        weight=weight_var,  # this is written already but harmless
     )
 
     return lam, spectra
