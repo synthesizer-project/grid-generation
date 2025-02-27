@@ -578,26 +578,26 @@ def add_lines(
 
                 lines['wavelength'] = line_wavelengths
 
-                # If spectra have been calculated extract the normalisation ..
-                if calculate_continuum:
-                    normalisation = spectra["normalisation"][indices]
+            # If spectra have been calculated extract the normalisation ..
+            if calculate_continuum:
+                normalisation = spectra["normalisation"][indices]
 
-                # Otherwise set the normalisation to unity
-                else:
-                    normalisation = 1.0
+            # Otherwise set the normalisation to unity
+            else:
+                normalisation = 1.0
 
-                # Calculate line luminosity and save it. Uses normalisation
-                # from spectra. Units are erg/s
-                lines["luminosity"][indices] = luminosities * normalisation
+            # Calculate line luminosity and save it. Uses normalisation
+            # from spectra. Units are erg/s
+            lines["luminosity"][indices] = luminosities * normalisation
 
-                # Calculate continuum luminosities. Units are erg/s/Hz.
-                if calculate_continuum:
-                    for continuum_quantity in continuum_quantities:
-                        lines[continuum_quantity][indices] = np.interp(
-                            line_wavelengths,
-                            lam,
-                            spectra_[continuum_quantity][indices]
-                            )
+            # Calculate continuum luminosities. Units are erg/s/Hz.
+            if calculate_continuum:
+                for continuum_quantity in continuum_quantities:
+                    lines[continuum_quantity][indices] = np.interp(
+                        line_wavelengths,
+                        lam,
+                        spectra_[continuum_quantity][indices]
+                        )
 
     # Apply units to the wavelength
     lines["wavelength"] *= Angstrom
