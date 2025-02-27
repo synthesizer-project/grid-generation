@@ -217,6 +217,7 @@ def make_grid(input_dir, grid_dir, ver, fcov, model):
             spectra={f"nebular{add}": spec * erg / s / Hz},
             alt_axes=("log10ages", "metallicities"),
             log_on_read=log_on_read,
+            weight="initial_masses",
         )
 
     else:
@@ -237,6 +238,7 @@ def make_grid(input_dir, grid_dir, ver, fcov, model):
             spectra={"incident": interp_spec * erg / s / Hz},
             alt_axes=("log10ages", "metallicities"),
             log_on_read=log_on_read,
+            weight="initial_masses",
         )
 
         # Include the specific ionising photon luminosity
