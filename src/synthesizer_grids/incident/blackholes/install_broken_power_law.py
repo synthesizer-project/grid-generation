@@ -47,10 +47,9 @@ def broken_power_law(x, edges, indices, normalisations=False, normalise=True):
             normalisations.append(norm)
 
     # now construct spectra
-    for e1, e2, ind, norm in zip(edges[0:],
-                                 edges[1:],
-                                 indices,
-                                 normalisations):
+    for e1, e2, ind, norm in zip(
+        edges[0:], edges[1:], indices, normalisations
+    ):
         # identify indices within the wavelength range
 
         s = (x >= e1) & (x < e2)
@@ -65,7 +64,6 @@ def broken_power_law(x, edges, indices, normalisations=False, normalise=True):
 
 
 if __name__ == "__main__":
-
     """
     Create incident AGN spectra assuming a broken power-law model.
 
@@ -87,32 +85,33 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # open the config file and extract parameters
-    with open(args.config_file, 'r') as file:
+    with open(args.config_file, "r") as file:
         parameters = yaml.safe_load(file)
 
-    model_name = parameters['model']
-    indices = parameters['indices']
-    edges_lam = np.array(parameters['edges']) * Angstrom
+    model_name = parameters["model"]
+    indices = parameters["indices"]
+    edges_lam = np.array(parameters["edges"]) * Angstrom
 
     # Model defintion dictionary
     model = {
-        'name': model_name,
-        'type': 'agn',
-        'family': 'broken_power_law',
+        "name": model_name,
+        "type": "agn",
+        "family": "broken_power_law",
     }
 
     # Define the grid filename and path
     out_filename = f"{args.grid_dir}/{model_name}.hdf5"
 
     # Define axes names
-    axes_names = [f'alpha{i+1}' for i, _ in enumerate(indices)]
+    axes_names = [f"alpha{i+1}" for i, _ in enumerate(indices)]
 
     # Define axes descriptions
     axes_descriptions = {}
     for i, axis_name in enumerate(axes_names):
         axes_descriptions[axis_name] = (
-            rf'The power-law slope between {edges_lam[i]} '
-            rf'\le \lambda/\AA < {edges_lam[i+1]}')
+            rf"The power-law slope between {edges_lam[i]} "
+            rf"\le \lambda/\AA < {edges_lam[i+1]}"
+        )
 
     # In this case the incident axes values are just the indices
     # but we also convert lists to arrays
@@ -141,7 +140,6 @@ if __name__ == "__main__":
     for i, alpha1 in enumerate(indices[0]):
         for j, alpha2 in enumerate(indices[1]):
             for k, alpha3 in enumerate(indices[2]):
-
                 # define the indices of the current model
                 indices_ = [alpha1, alpha2, alpha3]
 
@@ -152,7 +150,7 @@ if __name__ == "__main__":
     out_grid = GridFile(out_filename)
 
     # Define which axes are logged
-    log_on_read = {'alpha1': False, 'alpha2': False, 'alpha3': False}
+    log_on_read = {"alpha1": False, "alpha2": False, "alpha3": False}
 
     # Write everything out thats common to all models
     out_grid.write_grid_common(
@@ -162,6 +160,7 @@ if __name__ == "__main__":
         wavelength=lam,
         log_on_read=log_on_read,
         spectra={"incident": spec * erg / s / Hz},
+        weight="bolometric_luminosities",
     )
 
     # Include the specific ionising photon luminosity

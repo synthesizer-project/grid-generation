@@ -466,6 +466,9 @@ class GridFile:
         # Write out the axis names to an attribute
         self.write_attribute("/", "axes", list(axes.keys()))
 
+        # Store the weight variable as an attribute
+        self.write_attribute("/", "WeightVariable", weight)
+
         # Parse descriptions and use defaults if not given
         for key in axes:
             if key in descriptions:
@@ -505,9 +508,9 @@ class GridFile:
             )
 
         # Write out the spectra grids
-        self.write_spectra(spectra, wavelength, weight=weight)
+        self.write_spectra(spectra, wavelength)
 
-    def write_spectra(self, spectra, wavelength, weight="initial_masses"):
+    def write_spectra(self, spectra, wavelength):
         """
         Write out the spectra grids.
 
@@ -520,11 +523,6 @@ class GridFile:
                 be the key used for the dataset.
             wavelength (unyt_array)
                 The wavelength array of the spectra grid.
-            weight (str)
-                The variable to used to normalise the spectra in the grid. For
-                instance, in most SPS models this will initial mass normalised,
-                the Synthesizer property for this is "initial_masses". By
-                default this is set to "initial_masses".
         """
         # Write out the wavelength array
         self.write_dataset(
@@ -533,9 +531,6 @@ class GridFile:
             "Wavelength of the spectra grid",
             log_on_read=False,
         )
-
-        # Store the weight variable as an attribute
-        self.write_attribute("spectra", "WeightVariable", weight)
 
         # Write out each spectra
         for key, val in spectra.items():

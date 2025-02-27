@@ -101,6 +101,7 @@ def make_grid(model, rotation, model_type, imf, input_dir, grid_dir):
         spectra={"incident": spec * erg / s / Hz},  # check this unit
         alt_axes=("log10ages", "metallicities"),
         log_on_read=log_on_read,
+        weight="initial_masses",
     )
 
     # Include the specific ionising photon luminosity

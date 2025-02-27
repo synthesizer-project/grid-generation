@@ -273,6 +273,7 @@ def make_grid(input_dir, grid_dir, synthesizer_model_name):
         spectra={"incident": spec * erg / s / Hz},
         alt_axes=("ages", "metallicities"),
         log_on_read=log_on_read,
+        weight="initial_masses",
     )
 
     # Include the specific ionising photon luminosity
