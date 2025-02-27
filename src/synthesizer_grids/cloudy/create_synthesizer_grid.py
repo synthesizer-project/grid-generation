@@ -575,7 +575,6 @@ def add_lines(
 
             # If we're on the first grid point save the wavelength grid
             if (incident_index == 0) and (photoionisation_index == 0):
-
                 lines['wavelength'] = line_wavelengths
 
             # If spectra have been calculated extract the normalisation ..
