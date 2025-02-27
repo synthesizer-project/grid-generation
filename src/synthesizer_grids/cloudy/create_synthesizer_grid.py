@@ -322,7 +322,6 @@ def add_spectra(
     photoionisation_index_list,
     new_shape,
     spec_names=("incident", "transmitted", "nebular", "linecont"),
-    weight="initial_masses",
     norm_by_q=True,
 ):
     """
@@ -344,11 +343,6 @@ def add_spectra(
             nebular and linecont).
         shape (ndarray)
             The shape of the new grid.
-        weight (str)
-            The weight variable by which the spectra have been normalised. For
-            example, most SPS models are per initial stellar mass, so the
-            weight variable would be 'initial_masses', the Synthesizer
-            variable.
         norm_by_q (bool)
             If True, the spectra are normalised by the specific ionising
             photon luminosity calculated from the incident spectrum.
@@ -819,7 +813,6 @@ if __name__ == "__main__":
                 photoionisation_index_list,
                 new_shape,
                 spec_names=("incident", "transmitted", "nebular", "linecont"),
-                weight="initial_masses",
                 norm_by_q=True,
             )
             print('Added spectra')
