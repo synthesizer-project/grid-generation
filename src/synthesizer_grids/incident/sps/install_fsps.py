@@ -106,6 +106,7 @@ def generate_grid(model):
         spectra={"incident": spec * erg / s / Hz},
         alt_axes=("log10ages", "metallicities"),
         log_on_read=log_on_read,
+        weight="initial_masses",
     )
 
     # Include the specific ionising photon luminosity

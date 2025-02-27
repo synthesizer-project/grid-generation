@@ -182,6 +182,7 @@ def make_single_alpha_grid(
         spectra={"incident": spectra * erg / s / Hz},
         alt_axes=("log10ages", "metallicities"),
         log_on_read=log_on_read,
+        weight="initial_masses",
     )
 
     # Include the specific ionising photon luminosity
@@ -305,6 +306,7 @@ def make_full_grid(original_model_name, input_dir, grid_dir, bs="bin"):
         spectra={"incident": spectra * erg / s / Hz},
         alt_axes=("log10ages", "metallicities", "alpha_enhancements"),
         log_on_read=log_on_read,
+        weight="initial_masses",
     )
 
     # Include the specific ionising photon luminosity

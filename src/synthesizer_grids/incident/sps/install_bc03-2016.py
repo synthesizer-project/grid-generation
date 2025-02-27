@@ -348,6 +348,7 @@ def make_grid(variant, imf_type, input_dir, out_filename):
         spectra={"incident": spec * erg / s / Hz},
         alt_axes=("ages", "metallicities"),
         log_on_read=log_on_read,
+        weight="initial_masses",
     )
 
     # Include the specific ionising photon luminosity
