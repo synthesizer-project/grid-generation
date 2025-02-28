@@ -10,6 +10,13 @@ Note: there is no automatic download available so models need to be downloaded
 manually from:
 https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/bpass/
 
+The current is currently stored in 5 separate archives - one for each different alpha-enhancement. However, this is not convenient so it makes more sense to create a single directory and move all the files into there. That is,
+
+<after extracting the files>
+mkdir bpass_v2.3_imf135_300
+mv bpass_v2.3.a*/* bpass_v2.3_imf135_300/
+rm -rf bpass_v2.3.a*
+
 Example:
     python install_bpass2.3.py \
     --input-dir path/to/input/dir \
@@ -28,7 +35,8 @@ def resolve_name(original_model_name, bin, alpha=False):
     """Resolve the original BPASS model name into what we need. This is
     specific to 2.3, e.g. 'bpass_v2.3_imf135_300'"""
 
-    bpass_imf = original_model_name.split("_")[-1]
+    # bpass_imf = original_model_name.split("_")[-1]
+    bpass_imf = original_model_name.split("imf")[-1]
     print("bpass imf:", bpass_imf)
     hmc = float(bpass_imf[-3:])  # high-mass cutoff
 
@@ -91,6 +99,8 @@ def make_single_alpha_grid(
     # returns a dictionary containing the sps model parameters
     model, bpass_imf = resolve_name(original_model_name, bs, alpha=alpha)
 
+    print(bpass_imf)
+
     # generate the synthesizer_model_name
     synthesizer_model_name = get_model_filename(model)
 
@@ -122,11 +132,11 @@ def make_single_alpha_grid(
     metallicities = np.sort(np.array(list(map_met_to_key.keys())))
 
     # get ages
-    fn_ = f"ionizing-{bs}-imf_{bpass_imf}.a{ae}.zem5.dat"
+    fn_ = f"ionizing-{bs}-imf{bpass_imf}.a{ae}.zem5.dat"
     ages = parse_ionizing_file(f"{input_dir_}/{fn_}")
 
     # open spectra file
-    fn_ = f"spectra-{bs}-imf_{bpass_imf}.a{ae}.zem5.dat"
+    fn_ = f"spectra-{bs}-imf{bpass_imf}.a{ae}.zem5.dat"
     wavelengths, spectra_ = parse_spectra_file(f"{input_dir_}/{fn_}")
     nu = 3e8 / (wavelengths * 1e-10)
 
@@ -147,11 +157,11 @@ def make_single_alpha_grid(
         metallicity_key = map_met_to_key[metallicities[imetal]]
 
         # get ages and remaining fraction
-        fn_ = f"ionizing-{bs}-imf_{bpass_imf}.a{ae}.{metallicity_key}.dat"
+        fn_ = f"ionizing-{bs}-imf{bpass_imf}.a{ae}.{metallicity_key}.dat"
         ages = parse_ionizing_file(f"{input_dir_}/{fn_}")
 
         # open spectra file
-        fn_ = f"spectra-{bs}-imf_{bpass_imf}.a{ae}.{metallicity_key}.dat"
+        fn_ = f"spectra-{bs}-imf{bpass_imf}.a{ae}.{metallicity_key}.dat"
         wavelengths, spectra_ = parse_spectra_file(f"{input_dir_}/{fn_}")
 
         for ia, _ in enumerate(ages):
@@ -237,12 +247,12 @@ def make_full_grid(original_model_name, input_dir, grid_dir, bs="bin"):
 
     # get ages and remaining fraction for first alpha-enhancement and
     # metallicity
-    fn_ = f"""ionizing-{bs}-imf_{bpass_imf}.a+00.{metalk}.dat"""
+    fn_ = f"""ionizing-{bs}-imf{bpass_imf}.a+00.{metalk}.dat"""
     ages = parse_ionizing_file(f"{input_dir_}/{fn_}")
 
     # open spectra file for first alpha-enhancement and
     # metallicity
-    fn_ = f"""spectra-{bs}-imf_{bpass_imf}.a+00.{metalk}.dat"""
+    fn_ = f"""spectra-{bs}-imf{bpass_imf}.a+00.{metalk}.dat"""
     wavelengths, spectra_ = parse_spectra_file(f"{input_dir_}/{fn_}")
     nu = 3e8 / (wavelengths * 1e-10)
 
@@ -265,13 +275,13 @@ def make_full_grid(original_model_name, input_dir, grid_dir, bs="bin"):
             metalk = map_met_to_key[metal]
 
             # --- get remaining and remnant fraction
-            fn_ = f"""ionizing-{bs}-imf_{bpass_imf}.a{aek}.{metalk}.dat"""
+            fn_ = f"""ionizing-{bs}-imf{bpass_imf}.a{aek}.{metalk}.dat"""
 
             # get ages and remaining fraction
             ages = parse_ionizing_file(f"{input_dir_}/{fn_}")
 
             # open spectra file
-            fn_ = f"""spectra-{bs}-imf_{bpass_imf}.a{aek}.{metalk}.dat"""
+            fn_ = f"""spectra-{bs}-imf{bpass_imf}.a{aek}.{metalk}.dat"""
             wavelengths, spectra_ = parse_spectra_file(f"{input_dir_}/{fn_}")
 
             for ia, age in enumerate(ages):
@@ -323,7 +333,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-models",
         "--models",
-        default="bpass_v2.3_chab300",
+        default="bpass_v2.3_imf135_300",
         type=lambda arg: arg.split(","),
     )
 
