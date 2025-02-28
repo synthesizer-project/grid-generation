@@ -6,7 +6,7 @@ Example:
     python create_reduced_grid.py --grid-dir path/to/grids \
         --original-grid bpass-2.2.1-bin_chabrier03-0.1,300.0 \
         --new-ages=6.,7.,8.
-    python create_reduced_grid.py -grid_dir grids \
+    python create_reduced_grid.py -grid_dir path/to/grids \
         -original_grid bpass-2.2.1-bin_chabrier03-0.1,300.0 \
         -ages=6.,7.,8, -metallicities=0.001,0.0
 """
