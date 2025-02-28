@@ -563,9 +563,17 @@ def add_lines(
                 infile,
                 extension="emergent_elin")
 
+            # re-order by wavelength
+            sorted_indices = np.argsort(line_wavelengths)
+            ids = ids[sorted_indices]
+            luminosities = luminosities[sorted_indices]
+            line_wavelengths = line_wavelengths[sorted_indices]
+
             # If we're on the first grid point save the wavelength grid
             if (incident_index == 0) and (photoionisation_index == 0):
                 lines['wavelength'] = line_wavelengths
+                for id, lam in zip(ids, sorted_indices):
+                    print(id, lam)
 
             # If spectra have been calculated extract the normalisation ..
             if calculate_continuum:
