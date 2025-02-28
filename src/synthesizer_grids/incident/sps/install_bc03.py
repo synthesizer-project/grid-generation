@@ -1,5 +1,10 @@
 """
 Download BC03 and convert to HDF5 synthesizer grid.
+
+Example:
+    python install_bc03.py \
+    --input-dir path/to/input/dir \
+    --grid-dir path/to/grid/dir \
 """
 
 import gzip

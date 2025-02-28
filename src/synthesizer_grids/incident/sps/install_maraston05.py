@@ -149,7 +149,7 @@ if __name__ == "__main__":
     # Define the download URL
     original_data_url = {}
     original_data_url["ss"] = """
-    http://www.icg.port.ac.uk/~maraston/SSPn/SED/Sed_Mar05_SSP_Salpeter.tar.gz"""
+http://www.icg.port.ac.uk/~maraston/SSPn/SED/Sed_Mar05_SSP_Salpeter.tar.gz"""
 
     for imf in imfs:
         # Download the data if necessary
