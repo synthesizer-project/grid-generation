@@ -10,7 +10,9 @@ Note: there is no automatic download available so models need to be downloaded
 manually from:
 https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/bpass/
 
-The current is currently stored in 5 separate archives - one for each different alpha-enhancement. However, this is not convenient so it makes more sense to create a single directory and move all the files into there. That is,
+The current is currently stored in 5 separate archives - one for each different
+alpha-enhancement. However, this is not convenient so it makes more sense to
+create a single directory and move all the files into there. That is,
 
 <after extracting the files>
 mkdir bpass_v2.3_imf135_300
