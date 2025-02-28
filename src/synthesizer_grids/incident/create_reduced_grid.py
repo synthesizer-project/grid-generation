@@ -78,6 +78,9 @@ def reduce_grid(original_grid, **axes):
     model_metadata = {k: v for k, v in original_grid._model_metadata.items()}
 
     # Which axes should be logged when read?
+    # TODO: this is maintaining some backwards compatibility which won't be
+    # needed in the future. The logged_axes attribute doesn't exist in new
+    # grids.
     if hasattr(original_grid, "_logged_axes"):
         log_on_read = {
             axis: log
