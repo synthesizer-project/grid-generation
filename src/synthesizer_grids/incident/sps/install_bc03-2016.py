@@ -1,6 +1,14 @@
 """
 Download BC03 and convert to HDF5 synthesizer grid.
 
+There are three variants (using different atmospheres) and three different
+IMFs. These are all processed automatically.
+
+Example:
+    python install_bc03-2016.py \
+    --input-dir path/to/input/dir \
+    --grid-dir path/to/grid/dir \
+
 """
 
 import glob

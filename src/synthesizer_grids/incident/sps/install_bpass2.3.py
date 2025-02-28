@@ -1,5 +1,28 @@
 """
-Download BPASS v2.3 and convert to HDF5 synthesizer grid.
+Process BPASS v2.3 and convert to HDF5 synthesizer grid.
+
+For BPASS v2.3 there is currently only a single variant (bin) and IMF. However
+v2.3 has 5 different values of the alpha enhancement. The processing at the
+moment create grid files for both individual alpha enhancements and then a 3D
+grid where alpha_enhancement is an axis.
+
+Note: there is no automatic download available so models need to be downloaded
+manually from:
+https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/bpass/
+
+The current is currently stored in 5 separate archives - one for each different
+alpha-enhancement. However, this is not convenient so it makes more sense to
+create a single directory and move all the files into there. That is,
+
+<after extracting the files>
+mkdir bpass_v2.3_imf135_300
+mv bpass_v2.3.a*/* bpass_v2.3_imf135_300/
+rm -rf bpass_v2.3.a*
+
+Example:
+    python install_bpass2.3.py \
+    --input-dir path/to/input/dir \
+    --grid-dir path/to/grid/dir \
 """
 
 import numpy as np
@@ -15,7 +38,7 @@ def resolve_name(original_model_name, bin, alpha=False):
     specific to 2.3, e.g. 'bpass_v2.3_imf135_300'"""
 
     # bpass_imf = original_model_name.split("_")[-1]
-    bpass_imf = "135_300"
+    bpass_imf = original_model_name.split("imf")[-1]
     print("bpass imf:", bpass_imf)
     hmc = float(bpass_imf[-3:])  # high-mass cutoff
 
@@ -77,6 +100,8 @@ def make_single_alpha_grid(
 
     # returns a dictionary containing the sps model parameters
     model, bpass_imf = resolve_name(original_model_name, bs, alpha=alpha)
+
+    print(bpass_imf)
 
     # generate the synthesizer_model_name
     synthesizer_model_name = get_model_filename(model)
@@ -214,10 +239,10 @@ def make_full_grid(original_model_name, input_dir, grid_dir, bs="bin"):
     # create alpha-enhancement grid
 
     # list of available alpha enhancements
-    alpha_enhancements = np.array([0.0, 0.2, 0.6])
+    alpha_enhancements = np.array([-0.2, 0.0, 0.2, 0.4, 0.6])
 
     # look up dictionary for filename
-    ae_to_aek = {0.0: "+00", 0.2: "+02", 0.6: "+06"}
+    ae_to_aek = {-0.2: "-02", 0.0: "+00", 0.2: "+02", 0.4: "+04", 0.6: "+06"}
 
     # first metallicity
     metalk = map_met_to_key[metallicities[0]]
@@ -314,7 +339,8 @@ if __name__ == "__main__":
         type=lambda arg: arg.split(","),
     )
 
-    individual = False
+    # flags whether to build individual grids or the full grid.
+    individual = True
     full = True
 
     # Unpack the arguments
@@ -339,7 +365,7 @@ if __name__ == "__main__":
         for bs in ["bin"]:  # no single star models , 'sin'
             # make a grid with a single alpha enahancement value
             if individual:
-                for ae in ["+00", "+02", "+06"]:
+                for ae in ["-02", "+00", "+02", "+04", "+06"]:
                     print(ae)
                     out_filename = make_single_alpha_grid(
                         model, input_dir, grid_dir, ae=ae, bs=bs
