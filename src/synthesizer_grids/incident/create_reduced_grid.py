@@ -75,6 +75,13 @@ def reduce_grid(original_grid, **axes):
 
     # Set up the new grid output
     new_name = original_grid.grid_name + "_reduced"
+    for axis, values in new_axes.items():
+        new_name += f"_{axis}_["
+        for value in values:
+            new_name += f"{value.value:.2e},"
+        new_name = new_name[:-1]
+        new_name += "]"
+
     out_path = f"{original_grid.grid_dir}/{new_name}.hdf5"
     print(f"Writing reduced grid to {out_path}")
 
