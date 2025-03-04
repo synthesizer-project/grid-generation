@@ -106,7 +106,7 @@ def reduce_grid(original_grid, **axes):
         wavelength=original_grid.lam,
         spectra=new_spectra,
         log_on_read=log_on_read,
-        weight=original_grid.weightvariable,
+        weight=original_grid._weight_var,
     )
 
     out_grid.add_specific_ionising_lum()
