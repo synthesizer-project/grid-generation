@@ -156,7 +156,7 @@ def create_empty_grid(
         weight_var = "None"
     out_grid.write_attribute(
         group="/",
-        attr_key="weightvariable",
+        attr_key="WeightVariable",
         data=weight_var,
     )
 
