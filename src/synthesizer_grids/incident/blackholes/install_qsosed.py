@@ -50,7 +50,7 @@ if __name__ == "__main__":
     parser = Parser(description="QSOSED AGN model creation.")
 
     # parameter file to use
-    parser.add_argument("-config_file", type=str, required=True)
+    parser.add_argument("--config-file", type=str, required=True)
 
     # get the arguments
     args = parser.parse_args()
