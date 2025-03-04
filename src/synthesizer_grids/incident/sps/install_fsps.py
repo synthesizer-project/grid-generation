@@ -1,3 +1,14 @@
+"""
+Create FSPS synthesizer grids.
+
+Example:
+    python install_fsps.py \
+    --input-dir path/to/input/dir \
+    --grid-dir path/to/grid/dir \
+    --include-chabrier \
+    --include-imf-variants \
+"""
+
 import fsps
 import numpy as np
 from unyt import Hz, angstrom, dimensionless, erg, s, yr
@@ -105,15 +116,33 @@ def generate_grid(model):
 if __name__ == "__main__":
     # Set up the command line arguments
     parser = Parser(description="FSPS download and grid creation")
-    args = parser.parse_args()
+
+    # Include Chabrier IMF
+    parser.add_argument(
+        "--include-chabrier",
+        action="store_true",
+        help="Include Chabrier?",
+    )
+
+    # Include IMF variants
+    parser.add_argument(
+        "--include-imf-variants",
+        action="store_true",
+        help="Include IMF variants?",
+    )
 
     # Unpack the arguments
+    args = parser.parse_args()
     grid_dir = args.grid_dir
+    include_chabrier = args.include_chabrier
+    include_imf_variants = args.include_imf_variants
 
     # No download for FSPS
     if args.download:
         print("FSPS is a python package, no download required")
 
+    # Define the parameters of the defaul model. Variants simply update these
+    # parameters as required.
     default_model = {
         "sps_name": "fsps",
         # this is set later depending on the isochrones/spectra used
@@ -126,34 +155,43 @@ if __name__ == "__main__":
         "sps_version": "3.2",
     }
 
+    # List of models to create
     models = []
 
-    models += [{}]  # default model
+    # Add default model
+    models += [{}]
 
-    # # chabrier
-    models += [
-        {
-            "imf_type": "chabrier03",
-            "imf_masses": [0.08, 120],
-            "imf_slopes": [],
-        },
-    ]
+    # Add Chabrier IMF model
+    if include_chabrier:
+        models += [
+            {
+                "imf_type": "chabrier03",
+                "imf_masses": [0.08, 120],
+                "imf_slopes": [],
+            },
+        ]
 
-    # # different high-mass slopes
-    # models += [
-    #     {"imf_slopes": [1.3, 2.3, a3]} for a3 in np.arange(1.5, 3.01, 0.1)
-    # ]
+    # Include IMF variants
+    if include_imf_variants:
+        # Add models with varying high-mass slopes
+        models += [
+            {"imf_slopes": [1.3, 2.3, a3]} for a3 in np.arange(1.5, 3.01, 0.1)
+        ]
 
-    # # different high-mass cut-offs
-    # models += [{'imf_type': 'chabrier03', 'imf_masses': [0.08, hmc]}
-    #            for hmc in [1, 2, 5, 10, 20, 50, 100]]
+        # Add Chabrier models with varying high-mass cut-offs
+        models += [{'imf_type': 'chabrier03', 'imf_masses': [0.08, hmc]}
+                   for hmc in [1, 2, 5, 10, 20, 50, 100]]
 
-    # # different low-mass cut-offs
-    # models += [{'imf_type': 'chabrier03', 'imf_masses': [lmc, 120]}
-    #            for lmc in [0.5, 1, 2, 5, 10, 20, 50]]
+        # Add Chabrier models with varying high-mass cut-offs
+        models += [{'imf_type': 'chabrier03', 'imf_masses': [lmc, 120]}
+                   for lmc in [0.5, 1, 2, 5, 10, 20, 50]]
 
+    # Loop over models
     for model_ in models:
-        model = default_model | model_
 
-        # make grid
+        # Combine default model parameters with variants
+        model = default_model | model_
+        print(model)
+
+        # Make grid
         generate_grid(model)
