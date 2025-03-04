@@ -1,13 +1,17 @@
-"""
-Script to make a reduced grid, for example limiting the number of age bins
-to a specific set or a max age.
+"""A script to make a reduced grids from incident SPS grid files.
+
+This tool is used to create small subsampled grids for testing purposes. It
+can be used to reduce the number of models in a grid by specifying the
+desired ages and metallicities for the reduced axes. The script will then
+find the nearest models in the original grid to the specified values and
+create a new grid with only those models.
 
 Example:
-    python create_reduced_grid.py -grid_dir grids \
-        -original_grid bpass-2.2.1-bin_chabrier03-0.1,300.0 -ages=6.,7.,8.
-    python create_reduced_grid.py -grid_dir grids \
-        -original_grid bpass-2.2.1-bin_chabrier03-0.1,300.0 \
-        -ages=6.,7. -metallicities=0.001,0.0
+
+    ```bash
+    python create_reduced_grid.py --grid-dir /path/to/grid
+        --original-grid original_grid_name --ages 1e6 1e7 1e8
+    ```
 """
 
 import argparse
@@ -102,7 +106,7 @@ def reduce_grid(original_grid, **axes):
         wavelength=original_grid.lam,
         spectra=new_spectra,
         log_on_read=log_on_read,
-        weight=original_grid.WeightVariable,
+        weight=original_grid.weightvariable,
     )
 
     out_grid.add_specific_ionising_lum()
@@ -170,17 +174,16 @@ if __name__ == "__main__":
         ages = np.array(args.ages) * yr
         print(f"New ages: {ages}")
 
-    elif args.max_age:
-        ages = original_grid.ages[original_grid.ages <= args.max_age]
-
-    if args.metallicities:
+    elif args.metallicities:
         metallicities = np.array(
             args.metallicities,
         )
         print(f"New metallicities: {metallicities}")
 
-    # Raise exception if no reduction axes provided
-    if (ages is None) and (metallicities is None):
+    elif args.max_age:
+        ages = original_grid.ages[original_grid.ages <= args.max_age]
+
+    else:
         raise ValueError("No reduction for any axis specified")
 
     # We can also impose a maximum age if new_age were set... bit pointless
