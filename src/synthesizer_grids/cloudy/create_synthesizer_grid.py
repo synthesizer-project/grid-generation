@@ -176,13 +176,14 @@ def create_empty_grid(
         data=weight_var,
     )
 
+    print(incident_grid._extract_axes)
+
     # Now write out the grid axes, we first do the incident grid axes so we
     # can extract their metadata and then any extras
     for axis, extract_axis in zip(
         incident_grid.axes, incident_grid._extract_axes
     ):
         # Write out this axis (we can get everything we need from the incident)
-
         if extract_axis != axis:
             log_on_read = True
         else:
