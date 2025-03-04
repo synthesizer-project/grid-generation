@@ -174,17 +174,17 @@ if __name__ == "__main__":
         ages = np.array(args.ages) * yr
         print(f"New ages: {ages}")
 
-    elif args.metallicities:
-        metallicities = np.array(
-            args.metallicities,
-        )
-        print(f"New metallicities: {metallicities}")
-
     elif args.max_age:
         ages = original_grid.ages[original_grid.ages <= args.max_age]
 
     else:
         raise ValueError("No reduction for any axis specified")
+
+    if args.metallicities:
+        metallicities = np.array(
+            args.metallicities,
+        )
+        print(f"New metallicities: {metallicities}")
 
     # We can also impose a maximum age if new_age were set... bit pointless
     # but it's possible
