@@ -1,60 +1,167 @@
-"""
-Script to make a reduced grid, for example limiting the number of age bins
-to a specific set or a max age.
+"""A script to make a reduced grids from incident SPS grid files.
 
-Example:
-    python create_reduced_grid.py -grid_dir grids \
-        -original_grid bpass-2.2.1-bin_chabrier03-0.1,300.0 -ages=6.,7.,8.
-    python create_reduced_grid.py -grid_dir grids \
-        -original_grid bpass-2.2.1-bin_chabrier03-0.1,300.0 \
-        -ages=6.,7. -metallicities=0.001,0.0
+This tool is used to create small subsampled grids for testing purposes. It
+can be used to reduce the number of models in a grid by specifying the
+desired ages and metallicities for the reduced axes. The script will then
+find the nearest models in the original grid to the specified values and
+create a new grid with only those models.
+
+Example Usage:
+
+    ```bash
+    python create_reduced_grid.py --grid-dir /path/to/grid
+        --original-grid original_grid_name --ages 1e6 1e7 1e8
+    ```
 """
 
 import argparse
 
-import h5py
 import numpy as np
 from synthesizer.grid import Grid
+from unyt import Hz, erg, s, yr
+
+from synthesizer_grids.grid_io import GridFile
+
+
+def reduce_grid(original_grid, **axes):
+    """
+    Reduce the size of a grid by sampling the original axes.
+
+    This will use a NGP sampling method to match the input axes to those
+    on the original grid.
+    """
+    # Get all the axes on the original gripre-commit run --all-filesd
+    orig_axes_names = original_grid.axes
+
+    # Loop over axes and get the indices for the reduction (any axis not in the
+    # input axes will be kept as is)
+    new_axes_mask = {
+        axis: np.zeros(original_grid.shape[ind], dtype=bool)
+        for ind, axis in enumerate(orig_axes_names)
+    }
+
+    for ind, axis in enumerate(orig_axes_names):
+        if axis not in axes:
+            new_axes_mask[axis] = np.ones(original_grid.shape[ind], dtype=bool)
+        else:
+            print(f"Reducing axis {axis}")
+            values = axes[axis]
+            for value in values:
+                nearest_index = np.argmin(
+                    np.abs(getattr(original_grid, axis) - value)
+                )
+                new_axes_mask[axis][nearest_index] = True
+
+    # Get the new axes
+    new_axes = {
+        axis: getattr(original_grid, axis)[mask]
+        for axis, mask in new_axes_mask.items()
+    }
+
+    # Get the spectra
+    new_spectra = {
+        spec_type: original_grid.spectra[spec_type] * erg / s / Hz
+        for spec_type in original_grid.spectra
+    }
+
+    # Apply the masks along each axis of the spectra grid
+    for i, axis in enumerate(orig_axes_names):
+        for spec_type in original_grid.spectra:
+            new_spectra[spec_type] = np.take(
+                new_spectra[spec_type],
+                np.nonzero(new_axes_mask[axis])[0],
+                axis=i,
+            )
+
+    # Set up the new grid output
+    new_name = original_grid.grid_name + "_reduced"
+    for axis, values in new_axes.items():
+        new_name += f"_{axis}_["
+        for value in values:
+            new_name += f"{value.value:.2e},"
+        new_name = new_name[:-1]
+        new_name += "]"
+
+    out_path = f"{original_grid.grid_dir}/{new_name}.hdf5"
+    print(f"Writing reduced grid to {out_path}")
+
+    # Collect model metadata
+    model_metadata = {k: v for k, v in original_grid._model_metadata.items()}
+
+    # Which axes should be logged when read?
+    # TODO: this is maintaining some backwards compatibility which won't be
+    # needed in the future. The logged_axes attribute doesn't exist in new
+    # grids.
+    if hasattr(original_grid, "_logged_axes"):
+        log_on_read = {
+            axis: log
+            for axis, log in zip(orig_axes_names, original_grid._logged_axes)
+        }
+    else:
+        log_on_read = {
+            axis: "log10" in log
+            for axis, log in zip(orig_axes_names, original_grid._extract_axes)
+        }
+
+    # Create the GridFile ready to take outputs
+    out_grid = GridFile(out_path)
+
+    # Write everything out thats common to all models
+    out_grid.write_grid_common(
+        model=model_metadata,
+        axes=new_axes,
+        wavelength=original_grid.lam,
+        spectra=new_spectra,
+        log_on_read=log_on_read,
+        weight=original_grid._weight_var,
+    )
+
+    out_grid.add_specific_ionising_lum()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Reduce a grid")
 
     parser.add_argument(
-        "-grid_dir",
+        "--grid-dir",
         type=str,
         required=True,
         help="path to grids",
     )
 
     parser.add_argument(
-        "-original_grid",
+        "--original-grid",
         type=str,
         required=True,
         help="the name of the original_grid",
     )
 
     parser.add_argument(
-        "-max_age",
+        "--max-age",
         type=float,
         required=False,
         default=None,
         help="max age in years",
     )
 
+    # Create an argument which will store new ages and metallicities in a list
     parser.add_argument(
-        "-new_ages",
-        type=str,
+        "--ages",
+        nargs="+",
+        type=float,
         required=False,
         default=None,
-        help="set of ages in years, e.g. -ages=6.,7.,8.",
+        help="Specific ages in yrs to use along the age axis "
+        "(takes a list, e.g. --ages 1e6 1e7 1e8)",
     )
-
     parser.add_argument(
-        "-metallicities",
-        type=str,
+        "--metallicities",
+        nargs="+",
+        type=float,
         required=False,
         default=None,
-        help="specific set of metallicities, e.g. -metallicities=0.008,0.01",
+        help="Specific metallicities to use along the metallicity axis "
+        "(takes a list, e.g. --metallicities 0.001 0.01 0.02)",
     )
 
     args = parser.parse_args()
@@ -66,113 +173,37 @@ if __name__ == "__main__":
         read_lines=False,
     )
 
-    print(args.new_ages)
+    # Initialise the new axes
+    ages = None
+    metallicities = None
 
-    if args.new_ages:
-        new_ages = np.array(list(map(float, args.ages.split(","))))
-        print(new_ages)
+    if args.ages is not None:
+        ages = np.array(args.ages) * yr
+        print(f"New ages: {ages}")
+
+    elif args.max_age:
+        ages = original_grid.ages[original_grid.ages <= args.max_age]
+
+    else:
+        raise ValueError("No reduction for any axis specified")
 
     if args.metallicities:
         metallicities = np.array(
-            list(map(float, args.metallicities.split(",")))
+            args.metallicities,
         )
-        print(metallicities)
+        print(f"New metallicities: {metallicities}")
 
-    # get name of new grid
-    new_grid_name = args.original_grid
+    # We can also impose a maximum age if new_age were set... bit pointless
+    # but it's possible
+    if args.max_age:
+        ages = ages[ages <= args.max_age]
 
-    if args.new_ages:
-        new_grid_name += f"-new_ages:{'{:.0e}'.format(args.new_ages)}"
+    # Collect which axes we are modifying
+    axes = {}
+    if ages is not None:
+        axes["ages"] = ages
+    if metallicities is not None:
+        axes["metallicities"] = metallicities
 
-        # currently args.new_ages = 100000000.0
-        # but I want this to become a string with #1e8 instead
-    elif args.max_age:
-        new_grid_name += f"-max_age:{'{:.0e}'.format(args.max_age)}"
-
-    if args.metallicities:
-        new_grid_name += f"-metallicities:{args.metallicities}"
-
-    # create an indices array
-    all_age_indices = np.indices(original_grid.ages.shape)[0]
-    all_metallicity_indices = np.indices(original_grid.metallicities.shape)[0]
-
-    # maximum index for the age
-    if args.new_ages:
-        indices = []
-        for age in new_ages:
-            print(age)
-            indices.append(np.where(original_grid.ages == age)[0][0])
-        age_indices = np.array(indices)
-    elif args.max_age:
-        age_indices = all_age_indices[original_grid.ages <= args.max_age]
-    else:
-        age_indices = all_age_indices
-
-    print(age_indices)
-
-    if args.metallicities:
-        metallicity_indices = []
-        for metallicity in metallicities:
-            metallicity_indices.append(
-                np.where(original_grid.metallicities == metallicity)[0][0]
-            )
-        metallicity_indices = np.array(metallicity_indices)
-    else:
-        metallicity_indices = all_metallicity_indices
-
-    print(metallicity_indices)
-
-    # combined_indices = np.array([age_indices, metallicity_indices])
-    # print(combined_indices.shape)
-    # print(combined_indices)
-
-    # open the new grid
-    with h5py.File(f"{args.grid_dir}/{new_grid_name}.hdf5", "w") as hf:
-        # open the original incident model grid
-        with h5py.File(
-            f"{args.grid_dir}/{args.original_grid}.hdf5", "r"
-        ) as hf_original:
-            print("-" * 50)
-            print(f"ORIGINAL GRID - {args.original_grid}")
-            print("-" * 50)
-            print("---- attributes")
-            for k, v in hf_original.attrs.items():
-                print(k, v)
-            print("---- groups and datasets")
-            hf_original.visititems(print)
-
-            # copy top-level attributes
-            for k, v in hf_original.attrs.items():
-                hf.attrs[k] = v
-
-            # copy axes, modifying the age axis
-            hf["axes/metallicities"] = hf_original["axes/metallicities"][
-                metallicity_indices
-            ]
-            hf["axes/ages"] = hf_original["axes/ages"][age_indices]
-
-            # copy log10_specific_ionising_lum
-            for ion in hf_original[
-                "log10_specific_ionising_luminosity"
-            ].keys():
-                a = hf_original["log10_specific_ionising_luminosity"][ion][()]
-                a = a[np.ix_(age_indices, metallicity_indices)]
-                hf[f"log10_specific_ionising_luminosity/{ion}"] = a
-
-            # copy wavelength grid
-            hf["spectra/wavelength"] = hf_original["spectra/wavelength"][:]
-
-            # copy spectra
-            a = hf_original["spectra/incident"][()]
-            a = a[np.ix_(age_indices, metallicity_indices)]
-            hf["spectra/incident"] = a
-
-        # print attributes and datasets of new grid
-        print("-" * 50)
-        print(f"NEW GRID - {new_grid_name}")
-        print("-" * 50)
-        print("---- attributes")
-        for k, v in hf.attrs.items():
-            print(k, v)
-        print("---- groups and datasets")
-        hf.visititems(print)
+    # Just do it...
+    reduce_grid(original_grid, **axes)
