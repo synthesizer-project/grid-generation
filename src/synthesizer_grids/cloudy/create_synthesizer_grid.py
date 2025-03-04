@@ -41,6 +41,19 @@ axes_units = {
     "abundance_scalings.carbon_to_oxygen": dimensionless,
 }
 
+log_on_read_dict = {
+    "reference_ionisation_parameter": True,
+    "fixed_ionisation_parameter": True,
+    "depletion_scale": False,
+    "z": False,
+    "ionisation_parameter": True,
+    "hydrogen_density": True,
+    "stop_column_density": False,
+    "alpha": False,
+    "abundance_scalings.nitrogen_to_oxygen": False,
+    "abundance_scalings.carbon_to_oxygen": False,
+}
+
 
 def create_empty_grid(
     grid_dir,
@@ -165,10 +178,16 @@ def create_empty_grid(
 
     # Now write out the grid axes, we first do the incident grid axes so we
     # can extract their metadata and then any extras
-    for axis, log_on_read in zip(
-        incident_grid.axes, incident_grid._logged_axes
+    for axis, extract_axis in zip(
+        incident_grid.axes, incident_grid._extract_axes
     ):
         # Write out this axis (we can get everything we need from the incident)
+
+        if extract_axis != axis:
+            log_on_read = True
+        else:
+            log_on_read = False
+
         out_grid.write_dataset(
             key=f"axes/{axis}",
             data=getattr(incident_grid, axis),
@@ -190,7 +209,7 @@ def create_empty_grid(
                 key=f"axes/{axis}",
                 data=new_axes_values[axis],
                 description=f"grid axes {axis} (introduced during cloudy run)",
-                log_on_read=False,
+                log_on_read=log_on_read_dict[axis],
             )
 
         # Ok, maybe its just a common axis that we have units for
@@ -286,12 +305,13 @@ def check_cloudy_runs(
 
     for incident_index, incident_index_tuple in enumerate(incident_index_list):
         for photoionisation_index, photoionisation_index_tuple in enumerate(
-            photoionisation_index_list):
-
+            photoionisation_index_list
+        ):
             # The infile
             infile = (
                 f"{cloudy_dir}/{new_grid_name}/"
-                f"{incident_index}/{photoionisation_index}")
+                f"{incident_index}/{photoionisation_index}"
+            )
 
             failed = False
 
@@ -384,17 +404,18 @@ def add_spectra(
 
     for incident_index, incident_index_tuple in enumerate(incident_index_list):
         for photoionisation_index, photoionisation_index_tuple in enumerate(
-            photoionisation_index_list):
-
+            photoionisation_index_list
+        ):
             # Get the indices of the grid_point
-            indices = (
-                tuple(incident_index_tuple) +
-                tuple(photoionisation_index_tuple))
+            indices = tuple(incident_index_tuple) + tuple(
+                photoionisation_index_tuple
+            )
 
             # The infile
             infile = (
                 f"{cloudy_dir}/{new_grid_name}/"
-                f"{incident_index}/{photoionisation_index}")
+                f"{incident_index}/{photoionisation_index}"
+            )
 
             # Read the continuum file containing the spectra
             spec_dict = cloudy.read_continuum(infile, return_dict=True)
@@ -500,7 +521,8 @@ def add_lines(
         linelist = file.readlines()
         # strip escape character
         lines_to_include = [
-            re.sub(r'[\x00-\x1F\x7F]', '', s) for s in linelist]
+            re.sub(r"[\x00-\x1F\x7F]", "", s) for s in linelist
+        ]
 
     # Calculate number of lines
     nlines = len(lines_to_include)
@@ -511,19 +533,20 @@ def add_lines(
     lines = {}
 
     # Record list of IDs
-    lines['id'] = lines_to_include
+    lines["id"] = lines_to_include
 
     # Define output quantities
 
     # We always save luminosity...
-    lines['luminosity'] = np.empty((*new_shape, nlines))
+    lines["luminosity"] = np.empty((*new_shape, nlines))
 
     # ... but only save continuum values if spectra are provided.
     if calculate_continuum:
         continuum_quantities = [
-            'transmitted',
-            'nebular_continuum',
-            'total_continuum']
+            "transmitted",
+            "nebular_continuum",
+            "total_continuum",
+        ]
 
         spectra_ = {}
 
@@ -532,12 +555,14 @@ def add_lines(
 
         # Calculate nebular_contiuum
         spectra_["nebular_continuum"] = (
-            spectra["nebular"] - spectra["linecont"])
+            spectra["nebular"] - spectra["linecont"]
+        )
 
         # Calculate total_continuum. Note this is not the same as adding
         #  nebular and transmitted since that would include emission lines.
         spectra_["total_continuum"] = (
-            spectra_["nebular_continuum"] + spectra_["transmitted"])
+            spectra_["nebular_continuum"] + spectra_["transmitted"]
+        )
 
         # Define output arrays
         for continuum_quantity in continuum_quantities:
@@ -546,22 +571,23 @@ def add_lines(
     # Loop over incident models and photoionisation models
     for incident_index, incident_index_tuple in enumerate(incident_index_list):
         for photoionisation_index, photoionisation_index_tuple in enumerate(
-            photoionisation_index_list):
-
+            photoionisation_index_list
+        ):
             # Get the indices of the grid_point
-            indices = (
-                tuple(incident_index_tuple) +
-                tuple(photoionisation_index_tuple))
+            indices = tuple(incident_index_tuple) + tuple(
+                photoionisation_index_tuple
+            )
 
             # The infile
             infile = (
                 f"{cloudy_dir}/{new_grid_name}/"
-                f"{incident_index}/{photoionisation_index}")
+                f"{incident_index}/{photoionisation_index}"
+            )
 
             # Read line quantities
             ids, line_wavelengths, luminosities = cloudy.read_linelist(
-                infile,
-                extension="emergent_elin")
+                infile, extension="emergent_elin"
+            )
 
             # re-order by wavelength
             sorted_indices = np.argsort(line_wavelengths)
@@ -571,9 +597,9 @@ def add_lines(
 
             # If we're on the first grid point save the wavelength grid
             if (incident_index == 0) and (photoionisation_index == 0):
-                lines['wavelength'] = line_wavelengths
-                for id, lam in zip(ids, sorted_indices):
-                    print(id, lam)
+                lines["wavelength"] = line_wavelengths
+                # for id, lam in zip(ids, sorted_indices):
+                #     print(id, lam)
 
             # If spectra have been calculated extract the normalisation ..
             if calculate_continuum:
@@ -593,8 +619,8 @@ def add_lines(
                     lines[continuum_quantity][indices] = np.interp(
                         line_wavelengths,
                         lam,
-                        spectra_[continuum_quantity][indices]
-                        )
+                        spectra_[continuum_quantity][indices],
+                    )
 
     # Apply units to the wavelength
     lines["wavelength"] *= Angstrom
@@ -654,8 +680,8 @@ if __name__ == "__main__":
     # line_type = args.line_calc_method
     verbose = args.verbose
 
-    print(' '*80)
-    print('-'*80)
+    print(" " * 80)
+    print("-" * 80)
     print(incident_grid_name)
     print(cloudy_param_file)
     print(extra_cloudy_param_file)
@@ -675,7 +701,8 @@ if __name__ == "__main__":
             extra_cloudy_param_file += ".yaml"
         else:
             extra_cloudy_param_name = "".join(
-                extra_cloudy_param_file.split(".")[:-1])
+                extra_cloudy_param_file.split(".")[:-1]
+            )
 
     if incident_grid_name.split(".")[-1] != "hdf5":
         incident_grid_file = incident_grid_name + ".hdf5"
@@ -690,9 +717,7 @@ if __name__ == "__main__":
     # If an additional parameter set append this to the new grid name
     if extra_cloudy_param_file:
         # Ignore the directory part if it exists
-        extra_cloudy_param_name = extra_cloudy_param_name.split("/")[
-            -1
-        ]
+        extra_cloudy_param_name = extra_cloudy_param_name.split("/")[-1]
         # Append the new_grid_name with the additional name
         new_grid_name += "-" + extra_cloudy_param_name
 
@@ -720,13 +745,13 @@ if __name__ == "__main__":
         incident_model_list,
         incident_index_list,
     ) = get_grid_props_cloudy(
-        incident_axes,
-        incident_axes_values,
-        verbose=False)
+        incident_axes, incident_axes_values, verbose=False
+    )
 
     # Load the cloudy parameters you are going to run
     fixed_photoionisation_params, variable_photoionisation_params = (
-        get_cloudy_params(cloudy_param_file))
+        get_cloudy_params(cloudy_param_file)
+    )
 
     # If an additional parameter set is provided supersede the default
     # parameters with these.
@@ -757,7 +782,8 @@ if __name__ == "__main__":
         ) = get_grid_props_cloudy(
             photoionisation_axes,
             variable_photoionisation_params,
-            verbose=False)
+            verbose=False,
+        )
 
     # Else, we need to specify that the only photonionisation model is 0
     else:
@@ -771,7 +797,7 @@ if __name__ == "__main__":
 
     new_shape = tuple(incident_shape) + tuple(photoionisation_shape)
     if verbose:
-        print('new shape:', new_shape)
+        print("new shape:", new_shape)
 
     # If there are photoionisation axes add these as well
     if len(variable_photoionisation_params) > 0:
@@ -806,7 +832,6 @@ if __name__ == "__main__":
 
     # If no runs have failed, go ahead and add spectra and lines.
     if len(failed_list) == 0:
-
         # Add spectra
         if include_spectra:
             lam, spectra = add_spectra(
@@ -819,7 +844,7 @@ if __name__ == "__main__":
                 spec_names=("incident", "transmitted", "nebular", "linecont"),
                 norm_by_q=True,
             )
-            print('Added spectra')
+            print("Added spectra")
             print(spectra.keys())
         else:
             lam = None
@@ -837,4 +862,4 @@ if __name__ == "__main__":
             spectra,
             line_type="linelist",
         )
-        print('Added lines')
+        print("Added lines")
