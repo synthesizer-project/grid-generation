@@ -41,6 +41,6 @@ def get_model_filename(model):
 
     # If high mass slope varies then say so
     if "high_mass_slopes" in list(model.keys()):
-        synthesizer_model_name += '-variable-high-mass-slope'
+        synthesizer_model_name += "-variable-high-mass-slope"
 
     return synthesizer_model_name
