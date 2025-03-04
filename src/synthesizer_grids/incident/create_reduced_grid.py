@@ -6,7 +6,7 @@ desired ages and metallicities for the reduced axes. The script will then
 find the nearest models in the original grid to the specified values and
 create a new grid with only those models.
 
-Example:
+Example Usage:
 
     ```bash
     python create_reduced_grid.py --grid-dir /path/to/grid
