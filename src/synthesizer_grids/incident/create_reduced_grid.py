@@ -26,7 +26,7 @@ def reduce_grid(original_grid, **axes):
     This will use a NGP sampling method to match the input axes to those
     on the original grid.
     """
-    # Get all the axes on the original grid
+    # Get all the axes on the original gripre-commit run --all-filesd
     orig_axes_names = original_grid.axes
 
     # Loop over axes and get the indices for the reduction (any axis not in the
