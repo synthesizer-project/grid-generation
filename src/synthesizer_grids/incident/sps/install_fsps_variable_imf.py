@@ -36,7 +36,8 @@ def generate_grid(model):
         imf_lower_limit=model["imf_masses"][0],
         imf1=model["imf_slopes"][0],
         imf2=2.3,
-        imf3=2.3,)
+        imf3=2.3,
+    )
 
     # Update the sps_variant parameter with the actual model used
     model["sps_variant"] = "-".join(
@@ -56,7 +57,6 @@ def generate_grid(model):
     spec = np.zeros((na, nmetal, len(high_mass_slopes), len(lam)))
 
     for high_mass_slope_index, high_mass_slope in enumerate(high_mass_slopes):
-
         print(high_mass_slope)
 
         # NOTE this imf_type (2) assumes the IMF has three slopes with the
@@ -72,7 +72,8 @@ def generate_grid(model):
             imf_lower_limit=model["imf_masses"][0],
             imf1=model["imf_slopes"][0],
             imf2=high_mass_slope,
-            imf3=high_mass_slope,)
+            imf3=high_mass_slope,
+        )
 
         # Loop over metallicity
         for metallicity_index in range(nmetal):
@@ -80,7 +81,6 @@ def generate_grid(model):
 
             # Loop over age
             for age_index in range(na):
-
                 # Extract spectra in Lsol / Hz
                 lnu = spec_[age_index]
 
@@ -99,7 +99,8 @@ def generate_grid(model):
     log_on_read = {
         "ages": True,
         "metallicities": False,
-        "high_mass_slope": False}
+        "high_mass_slope": False,
+    }
 
     # Write everything out thats common to all models
     out_grid.write_grid_common(
@@ -113,7 +114,8 @@ def generate_grid(model):
         spectra={"incident": spec * erg / s / Hz},
         alt_axes=("log10ages", "metallicities", "high_mass_slopes"),
         descriptions={
-            "high_mass_slope": "high mass (>0.5 Msun) slope of the IMF"},
+            "high_mass_slope": "high mass (>0.5 Msun) slope of the IMF"
+        },
         log_on_read=log_on_read,
     )
 
@@ -145,7 +147,9 @@ if __name__ == "__main__":
         "sps_variant": False,
         "imf_type": "bpl",  # named IMF or bpl (broken power law)
         "imf_masses": [0.08, 0.5, 100],
-        "imf_slopes": [1.3, ],
+        "imf_slopes": [
+            1.3,
+        ],
         "alpha": False,
         "pyfsps_version": str(fsps.__version__),
         "sps_version": "3.2",

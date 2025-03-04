@@ -1,0 +1,45 @@
+# Default config file for SPS models. 
+
+# CLOUDY VERSION
+cloudy_version: c23.01
+
+# ABUNDANCE PATTERN AND DEPLETION
+reference_abundance: GalacticConcordance # the reference abundance pattern to assume
+alpha: 0.0  # alpha element enhancement
+abundance_scalings:
+  nitrogen_to_oxygen: [-2.0, -1.03] # scaling for Nitrogen, either float relative to Solar or string defining the in-built function to use
+  carbon_to_oxygen: [-1.5, -0.34] # scaling for Carbon, either float relative to Solar or string defining the in-built function to use
+depletion_model: Jenkins2009_Gunasekera2021 # the depletion model.
+depletion_scale: [0.0, 0.5, 1.0] # the depletion scale factor. For linearly scaled depletion models (e.g. CloudyClassic, Gutkin2016) this is by default 1.0. For Jenkins2009 this should be 0.5 (fstar).
+
+# GRAINS
+grains: Orion # include ISM grains
+
+# GEOMETRY
+geometry: planeparallel
+
+# IONISATION PARAMETER 
+ionisation_parameter_model: fixed  # which ionisation parameter model to use. `ref` assumes a varying ionisation parameter at a fixed reference age and metallicity
+ionisation_parameter: [0.0001, 0.01]  
+
+# DENSITY
+hydrogen_density: [1.0e+2, 1.0e+3]
+
+# STOPPING CRITERIA
+stop_T: 500  # stopping temperature
+stop_efrac: -2  # limiting ratio of electron to H densities
+
+# MISC COMMANDS
+CMB:  # include CMB heating
+T_floor: 100  # lower gas temperature floor
+cosmic_rays: true  # flag for inclusion of cosmic ray heating
+# covering_factor: 1.0  #
+radius: 0.01  # log of the radius of the cloud, in parsecs
+turbulence: 100 # turbulence
+z: 0.0  # redshift
+
+# OUTPUT COMMANDS
+resolution: 1.0 # energy resolution relative to the default
+output_cont: false
+output_linelist: linelist-standard.dat
+iterate_to_convergence: true

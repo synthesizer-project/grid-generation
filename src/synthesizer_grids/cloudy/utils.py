@@ -2,9 +2,11 @@ import numpy as np
 import yaml
 
 
-def get_cloudy_params(param_file="c23.01-sps", param_dir="params"):
+def get_cloudy_params(
+        param_file="c23.01-test",
+        param_dir="params"):
     """
-    Read cloudy parameters from a yaml parameter file
+    Read parameters from a yaml parameter file
 
     Arguments:
         param_file (str)
@@ -20,7 +22,7 @@ def get_cloudy_params(param_file="c23.01-sps", param_dir="params"):
     """
 
     # open paramter file
-    with open(f"{param_dir}/{param_file}.yaml", "r") as stream:
+    with open(f"{param_dir}/{param_file}", "r") as stream:
         try:
             params = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
@@ -29,14 +31,23 @@ def get_cloudy_params(param_file="c23.01-sps", param_dir="params"):
     grid_params = {}
     fixed_params = {}
 
-    # Loop over parameters
+    # loop over parameters
     for k, v in params.items():
-        # If parameter is a list store it in the grid_parameters dictionary
+
+        # if parameter is a list store it in the grid_parameters dictionary
         # and convert to a numpy array
         if isinstance(v, list):
-            grid_params[k] = list(map(float, v))
+            grid_params[k] = np.array(list(map(float, v)))
 
-        # Otherwise store it in fixed_params dictionary
+        # if a dictionary collect any parameters that are also lists
+        elif isinstance(v, dict):
+            for k_, v_ in v.items():
+                if isinstance(v_, list):
+                    grid_params[f'{k}.{k_}'] = np.array(list(map(float, v_)))
+                else:
+                    fixed_params[f'{k}.{k_}'] = v_
+
+        # otherwise store it in fixed_params dictionary
         else:
             fixed_params[k] = v
 
@@ -111,78 +122,3 @@ def get_grid_props_cloudy(axes, axes_values, verbose=True):
 
     return n_axes, shape, n_models, mesh, model_list, index_list
 
-
-def apollo_submission_script(n, grid_data_dir, cloudy_path, cloudy_version):
-    """
-    Create an Apollo SGE submission script.
-
-    Parameters
-    ----------
-    n : int
-        Number of models to run, sets size of array job.
-    synthesizer_data_dir : str
-        where to write the submission script
-    cloudy : str
-        bash executable for CLOUDY
-
-    Returns
-    -------
-    None
-    """
-
-    # cloudy executable
-    cloudy = f"{cloudy_path}/{cloudy_version}/source/cloudy.exe"
-
-    print(cloudy)
-
-    # cloudy data dir
-    cloudy_data_path = f'"{cloudy_path}/{cloudy_version}/data/:./"'
-
-    apollo_job_script = f"""
-######################################################################
-# Options for the batch system
-# These options are not executed by the script, but are instead read by the
-# batch system before submitting the job. Each option is preceeded by '#$' to
-# signify that it is for grid engine.
-#
-# All of these options are the same as flags you can pass to qsub on the
-# command line and can be **overriden** on the command line. see man qsub for
-# all the details
-######################################################################
-# -- The shell used to interpret this script
-#$ -S /bin/bash
-# -- Execute this job from the current working directory.
-#$ -cwd
-#$ -l h_vmem=4G
-#$ -l m_mem_free=4G
-# -- Job output to stderr will be merged into standard out. Remove this line if
-# -- you want to have separate stderr and stdout log files
-#$ -j y
-#$ -o output/
-# -- Send email when the job exits, is aborted or suspended
-# #$ -m eas
-# #$ -M YOUR_USERNAME@sussex.ac.uk
-######################################################################
-# Job Script
-# Here we are writing in bash (as we set bash as our shell above). In here you
-# should set up the environment for your program, copy around any data that
-# needs to be copied, and then execute the program
-######################################################################
-
-# set cloudy data path
-export CLOUDY_DATA_PATH={cloudy_data_path}
-
-{cloudy} -r $SGE_TASK_ID
-"""
-
-    open(f"{grid_data_dir}/run_grid.job", "w").write(apollo_job_script)
-    print(grid_data_dir)
-
-    # define the qsub command
-    qsub = f"qsub -t 1:{n} -q smp.q -pe openmp 2 run_grid.job "
-    print(qsub)
-
-    # create a script to execute the qsub command
-    open(f"{grid_data_dir}/run.sh", "w").write(qsub)
-
-    return
