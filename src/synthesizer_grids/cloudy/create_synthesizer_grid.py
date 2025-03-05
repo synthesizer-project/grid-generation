@@ -533,9 +533,6 @@ def add_lines(
     # Set up the lines dictionary
     lines = {}
 
-    # Record list of IDs
-    lines["id"] = lines_to_include
-
     # Define output quantities
 
     # We always save luminosity...
@@ -601,6 +598,9 @@ def add_lines(
                 lines["wavelength"] = line_wavelengths
                 # for id, lam in zip(ids, sorted_indices):
                 #     print(id, lam)
+
+                # Record list of IDs
+                lines["id"] = lines_to_include
 
             # If spectra have been calculated extract the normalisation ..
             if calculate_continuum:
