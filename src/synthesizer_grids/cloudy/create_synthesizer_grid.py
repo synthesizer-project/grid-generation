@@ -600,7 +600,7 @@ def add_lines(
                 #     print(id, lam)
 
                 # Record list of IDs
-                lines["id"] = lines_to_include
+                lines["id"] = ids
 
             # If spectra have been calculated extract the normalisation ..
             if calculate_continuum:
