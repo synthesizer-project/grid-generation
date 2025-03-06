@@ -7,7 +7,7 @@ cloudy_version: c23.01
 # ABUNDANCE PATTERN AND DEPLETION
 metallicities: [0.001, 0.01]
 reference_abundance: GalacticConcordance # the reference abundance pattern to assume
-alpha: 0.0  # alpha element enhancement
+alpha_enhancement: 0.0  # alpha element enhancement
 abundance_scalings: 
   nitrogen: GalacticConcordance
   carbon: GalacticConcordance

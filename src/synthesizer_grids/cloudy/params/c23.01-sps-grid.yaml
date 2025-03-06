@@ -5,7 +5,7 @@ cloudy_version: c23.01
 
 # ABUNDANCE PATTERN AND DEPLETION
 reference_abundance: GalacticConcordance # the reference abundance pattern to assume
-alpha: 0.0  # alpha element enhancement
+alpha_enhancement: 0.0  # alpha element enhancement
 abundance_scalings:
   nitrogen_to_oxygen: [-2.0, -1.5, -1.03, -0.5] # scaling for Nitrogen, either float relative to Solar or string defining the in-built function to use
   carbon_to_oxygen: [-1.5, -1.0, -0.34, 0.0] # scaling for Carbon, either float relative to Solar or string defining the in-built function to use
