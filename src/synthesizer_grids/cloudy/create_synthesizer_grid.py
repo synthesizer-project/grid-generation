@@ -54,6 +54,16 @@ log_on_read_dict = {
     "abundance_scalings.carbon_to_oxygen": False,
 }
 
+pluralisation_of_axes = {
+    "metallicities": "metallicities",
+    "ionisation_parameter": "ionisation_parameters",
+    "hydrogen_density": "hydrogen_densities",
+    "depletion_scale": "depletion_scales",
+    "column_density": "column_densities",
+    "alpha_ehancement": "alpha_enhancements",
+    "reference_ionisation_parameters": "reference_ionisation_parameters",
+}
+
 
 def create_empty_grid(
     grid_dir,
@@ -202,14 +212,20 @@ def create_empty_grid(
         if axis in incident_grid.axes:
             continue
 
+        if axis in pluralisation_of_axes.keys():
+            pluralised_axis = pluralisation_of_axes[axis]
+        else:
+            raise ValueError("No pluralisation set for axis")
+
         # If we have units in the grid_params dictionary already then use
         # these, otherwise use the axes_units dictionary, if we don't have
         # units for the axis then raise an error.
         if has_units(new_axes_values[axis]):
             out_grid.write_dataset(
-                key=f"axes/{axis}",
+                key=f"axes/{pluralised_axis}",
                 data=new_axes_values[axis],
-                description=f"grid axes {axis} (introduced during cloudy run)",
+                description=f"grid axes {pluralised_axis} (introduced during"
+                "cloudy run)",
                 log_on_read=log_on_read_dict[axis],
             )
 
@@ -219,7 +235,7 @@ def create_empty_grid(
             values_with_units = new_axes_values[axis] * axes_units[axis]
 
             out_grid.write_dataset(
-                key=f"axes/{axis}",
+                key=f"axes/{pluralised_axis}",
                 data=values_with_units,
                 description=f"grid axes {axis} (introduced during cloudy run)",
                 log_on_read=False,
