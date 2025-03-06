@@ -1,0 +1,5 @@
+model: 'qsosed-test'
+log10masses: [8., 9.]
+log10accretion_rates_eddington: [-1., 0.]
+cosine_inclinations: [0.09, 0.5, 0.98]
+spins: [0, 0.998]
