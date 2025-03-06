@@ -31,26 +31,26 @@ if __name__ == "__main__":
     Create incident AGN spectra assuming the QSOSED model.
     """
 
-    axes_names = ["mass", "accretion_rate_eddington", "cosine_inclination"]
+    axes_names = ["masses", "accretion_rates_eddington", "cosine_inclinations"]
 
     axes_descriptions = {
-        "mass": "blackhole mass",
-        "accretion_rate_eddington": "BH accretion rate / Eddington accretion"
+        "masses": "blackhole masses",
+        "accretion_rates_eddington": "BH accretion rate / Eddington accretion"
         " rate [LEdd=eta MdotEdd c^2]",
-        "cosine_inclination": "cosine of the inclination",
+        "cosine_inclinations": "cosine of the inclination",
     }
 
     axes_units = {
-        "mass": Msun,
-        "accretion_rate_eddington": dimensionless,
-        "cosine_inclination": dimensionless,
+        "masses": Msun,
+        "accretion_rates_eddington": dimensionless,
+        "cosine_inclinations": dimensionless,
     }
 
     # Set up the command line arguments
     parser = Parser(description="QSOSED AGN model creation.")
 
     # parameter file to use
-    parser.add_argument("-config_file", type=str, required=True)
+    parser.add_argument("--config-file", type=str, required=True)
 
     # get the arguments
     args = parser.parse_args()
@@ -60,18 +60,18 @@ if __name__ == "__main__":
         parameters = yaml.safe_load(file)
 
     model_name = parameters["model"]
-    mass = 10 ** np.array(parameters["log10_mass"])
+    mass = 10 ** np.array(parameters["log10masses"])
     accretion_rate_eddington = 10 ** np.array(
-        parameters["log10_accretion_rate_eddington"]
+        parameters["log10accretion_rates_eddington"]
     )
 
     # check whether isotropic or not
-    if isinstance(parameters["cosine_inclination"], float):
-        cosine_inclination = parameters["cosine_inclination"]
-        axes_names.remove("cosine_inclination")
+    if isinstance(parameters["cosine_inclinations"], float):
+        cosine_inclination = parameters["cosine_inclinations"]
+        axes_names.remove("cosine_inclinations")
         isotropic = True
     else:
-        cosine_inclination = np.array(parameters["cosine_inclination"])
+        cosine_inclination = np.array(parameters["cosine_inclinations"])
         isotropic = False
 
     # Model defintion dictionary
@@ -84,13 +84,21 @@ if __name__ == "__main__":
     # Define the grid filename and path
     out_filename = f"{args.grid_dir}/{model_name}.hdf5"
 
+    # Define axes values
     axes_values = {
-        "mass": mass,
-        "accretion_rate_eddington": accretion_rate_eddington,
+        "masses": mass,
+        "accretion_rates_eddington": accretion_rate_eddington,
     }
 
     if not isotropic:
-        axes_values["cosine_inclination"] = cosine_inclination
+        axes_values["cosine_inclinations"] = cosine_inclination
+
+    # Set log_on_read, i.e. which axes should be logged when extracted
+    # cosine_inclination is set later
+    log_on_read = {
+        "masses": True,
+        "accretion_rates_eddington": True,
+    }
 
     # the shape of the grid (useful for creating outputs)
     axes_shape = list(
@@ -100,12 +108,10 @@ if __name__ == "__main__":
     # define axes dictionary which is saved to the HDF5 file
     axes = {}
     for axis_name in axes_names:
-        axis_values = axes_values[axis_name]
-        if axes_units[axis_name] is not None:
-            axes[axis_name] = axis_values * axes_units[axis_name]
-        # assumed to be dimensionless
-        else:
-            axes[axis_name] = axis_values
+        axes[axis_name] = axes_values[axis_name] * axes_units[axis_name]
+
+    print(axes_values)
+    print(axes)
 
     # initialise default model, to get wavelength grid
     dagn = relagn()
@@ -116,9 +122,9 @@ if __name__ == "__main__":
     # create empty spectra grid
     spec = np.zeros((*axes_shape, len(lam)))
 
-    for i1, mass_ in enumerate(axes_values["mass"]):
+    for i1, mass_ in enumerate(axes_values["masses"]):
         for i2, accretion_rate_eddington_ in enumerate(
-            axes_values["accretion_rate_eddington"]
+            axes_values["accretion_rates_eddington"]
         ):
             if isotropic:
                 # spin is assumed to be zero here
@@ -136,7 +142,7 @@ if __name__ == "__main__":
 
             else:
                 for i3, cosine_inclination_ in enumerate(
-                    axes_values["cosine_inclination"]
+                    axes_values["cosine_inclinations"]
                 ):
                     # spin is assumed to be zero here
                     dagn = relagn(
@@ -158,9 +164,9 @@ if __name__ == "__main__":
     # normalising every spectra to unit
     if isotropic:
         # loop over each axis
-        for i1, mass_ in enumerate(axes_values["mass"]):
+        for i1, mass_ in enumerate(axes_values["masses"]):
             for i2, accretion_rate_eddington_ in enumerate(
-                axes_values["accretion_rate_eddington"]
+                axes_values["accretion_rates_eddington"]
             ):
                 # determine the boloe
                 bolometric_luminosity = -np.trapezoid(spec[i1, i2], nu_hz)
@@ -172,9 +178,9 @@ if __name__ == "__main__":
         isotropic_index = np.where(cosine_inclination == 0.5)[0]
 
         # Loop over each axis
-        for i1, mass_ in enumerate(axes_values["mass"]):
+        for i1, mass_ in enumerate(axes_values["masses"]):
             for i2, accretion_rate_eddington_ in enumerate(
-                axes_values["accretion_rate_eddington"]
+                axes_values["accretion_rates_eddington"]
             ):
                 # Determine the bolometric luminosity
                 bolometric_luminosity = -np.trapz(
@@ -182,17 +188,15 @@ if __name__ == "__main__":
                 )
 
                 for i3, cosine_inclination_ in enumerate(
-                    axes_values["cosine_inclination"]
+                    axes_values["cosine_inclinations"]
                 ):
                     spec[i1, i2, i3] /= bolometric_luminosity
 
     # Create the GridFile ready to take outputs
     out_grid = GridFile(out_filename)
 
-    log_on_read = {"mass": True, "accretion_rate_eddington": True}
-
     if not isotropic:
-        log_on_read["cosine_inclination"] = False
+        log_on_read["cosine_inclinations"] = False
 
     # Write everything out thats common to all models
     out_grid.write_grid_common(

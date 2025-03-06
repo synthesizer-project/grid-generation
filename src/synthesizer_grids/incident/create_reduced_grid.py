@@ -6,7 +6,7 @@ desired ages and metallicities for the reduced axes. The script will then
 find the nearest models in the original grid to the specified values and
 create a new grid with only those models.
 
-Example:
+Example Usage:
 
     ```bash
     python create_reduced_grid.py --grid-dir /path/to/grid
@@ -75,6 +75,13 @@ def reduce_grid(original_grid, **axes):
 
     # Set up the new grid output
     new_name = original_grid.grid_name + "_reduced"
+    for axis, values in new_axes.items():
+        new_name += f"_{axis}_["
+        for value in values:
+            new_name += f"{value.value:.2e},"
+        new_name = new_name[:-1]
+        new_name += "]"
+
     out_path = f"{original_grid.grid_dir}/{new_name}.hdf5"
     print(f"Writing reduced grid to {out_path}")
 
@@ -174,17 +181,17 @@ if __name__ == "__main__":
         ages = np.array(args.ages) * yr
         print(f"New ages: {ages}")
 
-    elif args.metallicities:
-        metallicities = np.array(
-            args.metallicities,
-        )
-        print(f"New metallicities: {metallicities}")
-
     elif args.max_age:
         ages = original_grid.ages[original_grid.ages <= args.max_age]
 
     else:
         raise ValueError("No reduction for any axis specified")
+
+    if args.metallicities:
+        metallicities = np.array(
+            args.metallicities,
+        )
+        print(f"New metallicities: {metallicities}")
 
     # We can also impose a maximum age if new_age were set... bit pointless
     # but it's possible

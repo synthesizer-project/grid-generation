@@ -1,5 +1,5 @@
 model: 'relqso-limited'
-log10_mass: [7,8,9,10]
-log10_accretion_rate_eddington: [-3., -2., -1., 0.0]
-cosine_inclination: [0.09, 0.5, 0.98]
-spin: [0, 0.5, 0.9, 0.998]
+log10masses: [7., 8., 9., 10.]
+log10accretion_rates_eddington: [-3., -2., -1., 0.]
+cosine_inclinations: [0.09, 0.5, 0.98]
+spins: [0, 0.5, 0.9, 0.998]
