@@ -173,9 +173,6 @@ def create_empty_grid(
                 log_on_read=False,
             )
 
-    # Add attribute with the full grid axes
-    out_grid.write_attribute(group="/", attr_key="axes", data=new_axes)
-
     # Copy over the weight attribute from the incident grid
     weight_var = getattr(incident_grid, "_weight_var", None)
     if weight_var is None:
@@ -207,13 +204,17 @@ def create_empty_grid(
         )
 
     # Now write out the new grid axes if there are any
+    # List of new grid axes including pluralised form
+    new_axes_for_grid = []
     for axis in new_axes:
         # Skip the one we did above
         if axis in incident_grid.axes:
+            new_axes_for_grid.append(axis)
             continue
 
         if axis in pluralisation_of_axes.keys():
             pluralised_axis = pluralisation_of_axes[axis]
+            new_axes_for_grid.append(pluralised_axis)
         else:
             raise ValueError("No pluralisation set for axis")
 
@@ -246,6 +247,11 @@ def create_empty_grid(
                 f"Unit for axis '{axis}' needs to be added to "
                 f"create_synthesizer_grid.py"
             )
+
+    # Add attribute with the full grid axes
+    out_grid.write_attribute(
+        group="/", attr_key="axes", data=new_axes_for_grid
+    )
 
     # Write out cloudy parameters
     out_grid.write_cloudy_metadata(photoionisation_parameters)
