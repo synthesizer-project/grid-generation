@@ -22,11 +22,10 @@ import os
 import tarfile
 
 import numpy as np
-from unyt import Hz, Msun, angstrom, dimensionless, erg, s, yr
-from utils import get_model_filename
-
 from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
+from unyt import Hz, Msun, angstrom, dimensionless, erg, s, yr
+from utils import get_model_filename
 
 
 def resolve_name(original_model_name, bin):

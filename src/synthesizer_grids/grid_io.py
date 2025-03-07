@@ -549,6 +549,58 @@ class GridFile:
                 log_on_read=False,
             )
 
+    def write_lines(self, lines, weight="initial_masses"):
+        """
+        Write out the lines grids.
+
+        This will write out the spectra grids to the file.
+
+        Args:
+            lines (dict)
+                A dictionary containing the lines grid, including wavelengths
+                and ids.
+            weight (str)
+                The variable to used to normalise the spectra in the grid. For
+                instance, in most SPS models this will initial mass normalised,
+                the Synthesizer property for this is "initial_masses". By
+                default this is set to "initial_masses".
+        """
+        # Write out the wavelength array
+        self.write_dataset(
+            "lines/wavelength",
+            lines["wavelength"],
+            "Wavelength of each emission line",
+            log_on_read=False,
+        )
+
+        # Write out the id array
+        self.write_string_dataset(
+            "lines/id",
+            np.array(lines["id"]).astype("object"),
+            "Cloudy ID of each emission line",
+        )
+
+        # Write out the lumminosity array
+        self.write_dataset(
+            "lines/luminosity",
+            lines["luminosity"],
+            "Line luminosity",
+            log_on_read=False,
+        )
+
+        # If there are additional entries assume these are continuum
+        # luminosities and save.
+        if len(lines.keys()) > 3:
+            for key, array in lines.items():
+                if key not in ["luminosity", "wavelength", "id"]:
+                    print(key)
+                    self.write_dataset(
+                        f"lines/{key}",
+                        lines[key],
+                        f"{' '.join(key.split('_'))} luminosity",
+                        log_on_read=False,
+                    )
+
     def add_specific_ionising_lum(self, ions=("HI", "HeII"), limit=100):
         """
         Calculate the specific ionising photon luminosity for different ions.
@@ -667,7 +719,6 @@ class GridFile:
 
             # If the parameter is a dictionary (e.g. as used for abundances)
             if isinstance(v, dict):
-                print(k, v)
                 # Create group for this key
                 nested_grp = cloudy_grp.create_group(k)
 

@@ -1,6 +1,10 @@
 """
 Create a grid of cloudy scripts based on a cloudy in-built incident model such
 as a blackbody or AGN.
+
+NOTE: this will not currently work and this functionality (generating grids
+directly from cloudy) may be removed in the future. Much simpler to just use
+incident grids.
 """
 
 import argparse

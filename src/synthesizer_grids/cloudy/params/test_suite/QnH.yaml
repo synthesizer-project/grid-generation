@@ -1,0 +1,2 @@
+reference_ionisation_parameter: [0.001, 0.01]
+hydrogen_density: [1.0e+2, 1.0e+3]

@@ -15,13 +15,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
 from synthesizer.grid import Grid
-from tqdm import tqdm
-
 from synthesizer_grids.cloudy.utils import (
     get_cloudy_params,
     get_grid_properties,
 )
 from synthesizer_grids.parser import Parser
+from tqdm import tqdm
 
 
 def read_model_output_tail(

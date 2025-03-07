@@ -16,10 +16,9 @@ import sys
 
 import numpy as np
 import yaml
-from unyt import Angstrom, Hz, Msun, c, dimensionless, erg, s
-
 from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
+from unyt import Angstrom, Hz, Msun, c, dimensionless, erg, s
 
 sys.path.append("RELAGN/src/python_version")
 
