@@ -2,9 +2,7 @@ import numpy as np
 import yaml
 
 
-def get_cloudy_params(
-        param_file="c23.01-test",
-        param_dir="params"):
+def get_cloudy_params(param_file="c23.01-test", param_dir="params"):
     """
     Read parameters from a yaml parameter file
 
@@ -33,7 +31,6 @@ def get_cloudy_params(
 
     # loop over parameters
     for k, v in params.items():
-
         # if parameter is a list store it in the grid_parameters dictionary
         # and convert to a numpy array
         if isinstance(v, list):
@@ -43,9 +40,9 @@ def get_cloudy_params(
         elif isinstance(v, dict):
             for k_, v_ in v.items():
                 if isinstance(v_, list):
-                    grid_params[f'{k}.{k_}'] = np.array(list(map(float, v_)))
+                    grid_params[f"{k}.{k_}"] = np.array(list(map(float, v_)))
                 else:
-                    fixed_params[f'{k}.{k_}'] = v_
+                    fixed_params[f"{k}.{k_}"] = v_
 
         # otherwise store it in fixed_params dictionary
         else:
@@ -121,4 +118,3 @@ def get_grid_props_cloudy(axes, axes_values, verbose=True):
         print(index_list)
 
     return n_axes, shape, n_models, mesh, model_list, index_list
-

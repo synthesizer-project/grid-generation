@@ -18,12 +18,11 @@ from synthesizer.abundances import (
 from synthesizer.exceptions import InconsistentParameter
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
+from synthesizer_grids.parser import Parser
 from utils import (
     get_cloudy_params,
     get_grid_props_cloudy,
 )
-
-from synthesizer_grids.parser import Parser
 
 
 def create_cloudy_input(

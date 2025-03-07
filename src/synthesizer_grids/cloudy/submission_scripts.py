@@ -4,13 +4,13 @@ Functions for creating submission scripts for specific machines.
 
 
 def create_slurm_job_script_by_incident_grid_point(
-        number_of_incident_grid_points=None,
-        partition=None,
-        new_grid_name=None,
-        cloudy_output_dir=None,
-        cloudy_executable_path=None,
-        memory="4G"):
-
+    number_of_incident_grid_points=None,
+    partition=None,
+    new_grid_name=None,
+    cloudy_output_dir=None,
+    cloudy_executable_path=None,
+    memory="4G",
+):
     """
     Create a generic slurm input script where we loop over every
     photoionisation model for a given incident grid point. In this case the
@@ -39,13 +39,13 @@ python run_cloudy.py \\
 
 
 def create_slurm_job_script_by_photoionisation_grid_point(
-        number_of_photoionisation_models=None,
-        partition=None,
-        new_grid_name=None,
-        cloudy_output_dir=None,
-        cloudy_executable_path=None,
-        memory="4G"):
-
+    number_of_photoionisation_models=None,
+    partition=None,
+    new_grid_name=None,
+    cloudy_output_dir=None,
+    cloudy_executable_path=None,
+    memory="4G",
+):
     """
     Create a generic slurm input script where we loop over every
     photoionisation model for a given photoionisation grid point. In this
@@ -80,9 +80,8 @@ def artemis(
     cloudy_output_dir=None,
     cloudy_executable_path=None,
     memory="4G",
-    by_photoionisation_grid_point=False
-        ):
-
+    by_photoionisation_grid_point=False,
+):
     """
     Submission script generator for artemis
     """
@@ -97,15 +96,15 @@ def artemis(
     # determine the partition to use:
     # short = 2 hours
     if number_of_models < 5:
-        partition = 'short'
+        partition = "short"
 
     # general = 8 hours
     elif number_of_models < 33:
-        partition = 'general'
+        partition = "general"
 
     # long = 8 days
     else:
-        partition = 'long'
+        partition = "long"
 
     # create job script
     if by_photoionisation_grid_point:
@@ -116,7 +115,9 @@ def artemis(
                 new_grid_name=new_grid_name,
                 cloudy_output_dir=cloudy_output_dir,
                 cloudy_executable_path=cloudy_executable_path,
-                memory=memory))
+                memory=memory,
+            )
+        )
     else:
         slurm_job_script = create_slurm_job_script_by_incident_grid_point(
             number_of_jobs,
@@ -124,8 +125,8 @@ def artemis(
             new_grid_name=new_grid_name,
             cloudy_output_dir=cloudy_output_dir,
             cloudy_executable_path=cloudy_executable_path,
-            memory=memory)
-
+            memory=memory,
+        )
 
     # save job script
     open(f"{new_grid_name}.slurm", "w").write(slurm_job_script)
