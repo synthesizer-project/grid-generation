@@ -36,7 +36,7 @@ axes_units = {
     "metallicities": dimensionless,
     "hydrogen_density": cm ** (-3),
     "stop_column_density": dimensionless,
-    "alpha": dimensionless,
+    "alpha_enhancement": dimensionless,
     "abundance_scalings.nitrogen_to_oxygen": dimensionless,
     "abundance_scalings.carbon_to_oxygen": dimensionless,
 }
@@ -49,19 +49,20 @@ log_on_read_dict = {
     "ionisation_parameter": True,
     "hydrogen_density": True,
     "stop_column_density": False,
-    "alpha": False,
+    "alpha_enhancement": False,
     "abundance_scalings.nitrogen_to_oxygen": False,
     "abundance_scalings.carbon_to_oxygen": False,
 }
 
 pluralisation_of_axes = {
+    "z": "redshifts",
     "metallicities": "metallicities",
     "ionisation_parameter": "ionisation_parameters",
     "hydrogen_density": "hydrogen_densities",
     "depletion_scale": "depletion_scales",
-    "column_density": "column_densities",
-    "alpha_ehancement": "alpha_enhancements",
-    "reference_ionisation_parameters": "reference_ionisation_parameters",
+    "stop_column_density": "column_densities",
+    "alpha_enhancement": "alpha_enhancements",
+    "reference_ionisation_parameter": "reference_ionisation_parameters",
 }
 
 
