@@ -4,10 +4,9 @@ Create a synthesizer incident grid for a broken power-law SED.
 
 import numpy as np
 import yaml
-from unyt import Angstrom, Hz, c, dimensionless, erg, s
-
 from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
+from unyt import Angstrom, Hz, c, dimensionless, erg, s
 
 
 def broken_power_law(x, edges, indices, normalisations=False, normalise=True):

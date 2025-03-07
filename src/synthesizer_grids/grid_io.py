@@ -598,7 +598,8 @@ class GridFile:
                         f"lines/{key}",
                         lines[key],
                         f"{' '.join(key.split('_'))} luminosity",
-                        log_on_read=False,)
+                        log_on_read=False,
+                    )
 
     def add_specific_ionising_lum(self, ions=("HI", "HeII"), limit=100):
         """
