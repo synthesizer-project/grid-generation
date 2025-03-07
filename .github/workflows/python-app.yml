@@ -27,9 +27,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8 pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - uses: chartboost/ruff-action@491342200cdd1cf4d5132a30ddc546b3b5bc531b # Lint with Ruff
+      - uses: astral-sh/ruff-action@v1 # Lint with Ruff
         with:
-          version: 0.6.0
+          version: 0.7.4
+          args: "format --check"
           changed-files: "true"
       - name: Test with pytest
         run: |
