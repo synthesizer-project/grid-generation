@@ -18,17 +18,18 @@ from synthesizer.abundances import (
 from synthesizer.exceptions import InconsistentParameter
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
-from synthesizer_grids.parser import Parser
 from utils import (
     get_cloudy_params,
     get_grid_props_cloudy,
 )
 
+from synthesizer_grids.parser import Parser
+
 
 def create_cloudy_input(
     incident_index,
     photoionisation_index,
-    parameters_,
+    parameters,
     delta_log10_specific_ionising_luminosity,
     output_directory,
 ):
@@ -55,7 +56,6 @@ def create_cloudy_input(
     # only add 'abundance_scalings' if its needed
     if "abundance_scalings" not in list(parameters.keys()):
         parameters["abundance_scalings"] = {}
-
     for k, v in parameters.items():
         if len(k.split(".")) > 1:
             if k.split(".")[0] == "abundance_scalings":
