@@ -16,13 +16,14 @@ from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
 from synthesizer.sed import Sed
 from synthesizer.units import has_units
-from synthesizer_grids.grid_io import GridFile
-from synthesizer_grids.parser import Parser
 from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, s, yr
 from utils import (
     get_cloudy_params,
     get_grid_props_cloudy,
 )
+
+from synthesizer_grids.grid_io import GridFile
+from synthesizer_grids.parser import Parser
 
 # Create dictionary of commonly used units for grid axes
 axes_units = {
