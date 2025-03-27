@@ -2,7 +2,7 @@
 
 This set of scripts facilitates the creation of new sets of grids with photoionisation modelling. This adds additional spectra (transmission, nebular, nebular_continuum) and adds line quantities (luminosities and continuum values).
 
-There are free steps to the process:
+There are three steps to the process:
 
 - First, we need to create the input files for `cloudy`. There are two approaches here: using an incident grid, or generating spectra directly from `cloudy`.
 - Next, we use `run_cloudy.py` to run `cloudy`.
