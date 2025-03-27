@@ -40,76 +40,77 @@ options:
 
 Note that all scripts will only download the data needed for the model if the download flag is set. This means the data need only be downloaded once for each model.
 
-## Processing grids with CLOUDY
+## Cloudy photoionisation modelling pipeline
 
-In the `cloudy/` directory are scripts to create `cloudy` input scripts and then process them to create `synthesizer` grids. There are two steps:
+This set of scripts facilitates the creation of new sets of grids with photoionisation modelling. This adds additional spectra (transmission, nebular, nebular_continuum) and adds line quantities (luminosities and continuum values).
 
-### Creating cloudy input grids
+There are free steps to the process:
 
-There are two approaches to creating cloudy input grids, using an **incident grid** (for example from an SPS model as above) or generating the grid using a cloudy shape command (e.g. blackbody). These scearnios are handled by two separate modules.
+- First, we need to create the input files for `cloudy`. There are two approaches here: using an incident grid, or generating spectra directly from `cloudy`.
+- Next, we use `run_cloudy.py` to run `cloudy`.
+- Finally, `create_synthesizer_grid.py` gathers the `cloudy` outputs and produces a new grid.
+
+The details of each of these steps are described below.
+
+### Creating the cloudy input grid
+
+The first step in the process is the creation of a grid of `cloudy` input files, including the incident spectra, the configuration file, and the list of lines to save. There are two potential approaches to creating cloudy input grids, using an **incident grid** (for example from an SPS model as above) or generating the grid using a cloudy shape command (e.g. blackbody). These scearnios are handled by two separate modules. 
 
 #### Using an incident grid
 
-To create an input grid, we run `make_cloudy_input_grid.py`. This takes the following arguments:
+To use an incident grid we can run `create_cloudy_input_grid.py` providing the incident grid name, grid directory, output directory, `cloudy` parameter file(s), a machine, and the path to the `cloudy` executable as follows:
 
-`-synthesizer_data_dir`: The directory containing both the cloudy runs (`cloudy/`) and grids (`grids/`). **Note** by default new grids are placed in `synthesizer_data_dir/grids/dev/`.
-`-m (--machine)`: the type of HPC on which you are running. If not provided, no submission script will be written.
-`-incident_grid`: The name of the synthesizer incident grid on which you wish to run `cloudy`.
-`-cloudy_params`: the YAML file containing `cloudy` parameters for modelling. See the examples for more details. These can be single values or arrays resulting in the creating of higher-dimensionality grids. Also included is the `cloudy` version.
-`-cloudy_path`: the path to the `cloudy` directory. **Note** this is not the path to executable. This was done to allow multiple versions of cloudy to exist simultanously.
+```
+create_cloudy_input_grid.py \
+    --incident-grid=test \
+    --grid-dir=/path/to/grids \
+    --cloudy-output-dir=/path/to/cloudy/outputs \
+    --cloudy-paramfile=c23.01-sps \
+    --cloudy-paramfile-extra=test_suite/reference_ionisation_parameter \
+    --machine=machine \
+    --cloudy-executable-path=/path/to/cloudy/executable
+```
+
+##### Parameter files
+
+An integral part of this process are the provision of a parameter file(s) which contains the photoionisation parameters. These can either be single values or lists (arrays). When a quantity is an array this adds an additional axis to the reprocessed grid. A range of ready-made parameter files are available for a range of scnearios in the `params/` directory.
+
+It is possible to provide two parameter files, for example a default set of parameters and then a file containing a limited set of parameters to be changed. This approach is used to build a *photoionisation test suite*; this is a series of parameter files used to generate grids where we systematically vary a photoionisation parameter (e.g. the hydrogen density or ionisation parameter) or flag. 
+
+##### Machines
+
+If `--machine` is specified, and it is one that is recognised (e.g. Sussex's artemis system), then a job submission script will be produced. The will be an array job with each job being a single incident grid point, i.e. each jobs runs all the photoionisation models. In most cases this will be a handful of models, but for comprehensive grids this could be hundreds or even thousands of cloudy models that will take sometime to run.
 
 #### Using a cloudy shape command
 
-As an alternative we can create a grid directly from using one of `cloudy`'s in-built shape commands (e.g. blackbody). To do this we need to provide a yaml file containing the name of the model (at the moment this is limited to `blackbody` and `agn`) with all the parameters, including any that are to be varied as a list.
+As an alternative we can create a grid directly from using one of `cloudy`'s in-built shape commands (e.g. blackbody). To do this we need to provide a yaml file containing the name of the model (at the moment this is limited to `blackbody` and `agn`) with all the parameters, including any that are to be varied as a list. **NOTE**: at present this is unlikely to be working correctly.
 
-#### The param YAML file
+### Run `cloudy`
 
-This contains the parameters that will be input into CLOUDY.
-
-Users can provide arrays/lists of parameters they wish to iterate over. In this case, the code will create individual runs for each of the parameters specified, with the following naming convention:
-
-{sps*grid}*{imf}_cloudy_{param}\_{value}
-
-where {param} is the key in the param file of the parameter to be varied, and {value} is the value to be provided. If this is numeric, it will be converted to a string, and if it is negative, the '-' will be substituted for 'm'.
-
-### Creating cloudy synthesizer grids
-
-Next we need to combine the cloudy ouputs to create a new `synthesizer` grid. To do this we run `create_synthesizer_grid.py`. This takes the following arguments:
-
-```bash
-usage: create_synthesizer_grid.py [-h] --grid-dir GRID_DIR [--verbose] --cloudy-dir CLOUDY_DIR --incident-grid INCIDENT_GRID [--cloudy-grid CLOUDY_GRID] [--cloudy-params CLOUDY_PARAMS]
-                                  [--cloudy-params-addition CLOUDY_PARAMS_ADDITION] [--include-spectra] [--replace] [--line-calc-method LINE_CALC_METHOD] [--machine MACHINE] [--norm-by-Q]
-
-Create Synthesizer HDF5 grid files from cloudy outputs.
-
-options:
-  -h, --help            show this help message and exit
-  --grid-dir GRID_DIR   The directory containing (or to contain) the grids.
-  --verbose             Are we talking?
-  --cloudy-dir CLOUDY_DIR
-                        The directory containing each of the individual cloudy run outputs.
-  --incident-grid INCIDENT_GRID
-                        The name of the incident grid (the grid used to generate the cloudy runs).
-  --cloudy-grid CLOUDY_GRID
-                        The name of the new cloudy reprocessed grid (default to <incident_grid>_cloudy.hdf5).
-  --cloudy-params CLOUDY_PARAMS
-                        The path to the cloudy parameter file.
-  --cloudy-params-addition CLOUDY_PARAMS_ADDITION
-                        The path to the cloudy 'extra' parameter file.
-  --include-spectra     Should the spectra be included in the grid?
-  --replace             Should missing files be replaced?
-  --line-calc-method LINE_CALC_METHOD
-                        The method used to calculate the line fluxes (either 'lines' or 'linelist')
-  --machine MACHINE     The machine used to run the cloudy runs (currently only supports apollo)
-  --norm-by-Q, -Q       Should the grid be normalised by the specific ionising luminosity? (default is True)
+Next, we can use the `run_cloudy.py` to automatically run either a single model, all models, or all models for a given photoionisation grid point (the suggested behaviour for coupling with a HPC array job). This behaviour depends on the choice of --incident-index and --photoionisation-index.
+Setting both will run a single model, setting only `--incident-index` will run all models at a particularly incident grid point, while setting neither will result in all models being run in serial (not recommended except for tiny grids).
 
 ```
+python run_cloudy.py \
+    --grid-name=grid_name \
+    --cloudy-output-dir=/path/to/cloudy/outputs \
+    --cloudy-executable-path=/path/to/cloudy/executable \
+    --incident-index=0
+    --photoionisation-index=0
+```
 
-### Scripts
+### Create synthesizer grid
 
-The cloudy directory also includes a script folder `apollo_production_scripts/` for processing multiple grids automatically. Essentially there are two scripts, one for creating the cloudy inputs and a second for creating the ultimate synthesizer grids. These loop over the contents of `incident.txt` and `grids.txt` to get the input parameters.
+Finally, we need to create a new `synthesizer` grid object containing the cloudy computed lines and spectra. This is acheived by running `create_synthesizer_grid.py`.
 
-These scripts will only work on Sussex's Apollo HPC system. Thus, if you want to use something similar please copy and adapt them as required. If you want them to form part of the package please make a new folder.
+```
+python create_synthesizer_grid.py \
+  --incident-grid=incident_grid_name \
+  --grid-dir=/path/to/grids \
+  --cloudy-output-dir=/path/to/cloudy/outputs \
+  --cloudy-paramfile=c23.01-sps \
+  --cloudy-paramfile-extra=test_suite/reference_ionisation_parameter
+```
 
 ## Contributing
 
