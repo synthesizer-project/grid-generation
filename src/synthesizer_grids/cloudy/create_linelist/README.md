@@ -9,3 +9,6 @@ In the synthesizer photoionisation modelling it is necessary to provide cloudy w
 - run all the `cloudy` models. `cloudy` input files exist for both stellar and AGN sources, including both conventions for line labelling (naming), i.e. standard (air at >200nm, vacuum <200nm) or vacuum wavelengthd.
 - run `create_linelist.ipynb` to generate the line list, changing the parameters as necessary.
 
+## Adding extra lines
+
+One can add extra lines that could get excluded by the above criteria. One can put them in `extra_lines.dat` 

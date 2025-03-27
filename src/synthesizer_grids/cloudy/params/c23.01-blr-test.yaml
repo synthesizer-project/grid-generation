@@ -1,34 +1,33 @@
-
-# Default config file for NLR models. 
+# Default config file for BLR models. 
 
 # CLOUDY VERSION
 cloudy_version: c23.01
 
 # ABUNDANCE PATTERN AND DEPLETION
-metallicities: [0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.05]
+metallicities: [0.001, 0.01]
 reference_abundance: GalacticConcordance # the reference abundance pattern to assume
 alpha_enhancement: 0.0  # alpha element enhancement
 abundance_scalings: 
   nitrogen: GalacticConcordance
   carbon: GalacticConcordance
-depletion_model: Jenkins2009_Gunasekera2021
-depletion_scale: 0.5
+depletion_model: 
+depletion_scale: 1.0
 
 # GRAINS
-grains: Orion
+grains: 
 
 # GEOMETRY
 geometry: planeparallel
 
 # IONISATION PARAMETER 
 ionisation_parameter_model: fixed  # which ionisation parameter model to use. `ref` assumes a varying ionisation parameter at a fixed reference age and metallicity
-ionisation_parameter: [0.001, 0.01, 0.1]  # value of ionisation 
+ionisation_parameter: [0.01, 0.1]  # value of ionisation 
 # DENSITY
-hydrogen_density: [1.0e+2, 1.0e+3, 1.0e+4, 1.0e+5]  
+hydrogen_density: [1.0e+9, 1.0e+10]  
 
 # STOPPING CRITERIA
-stop_T: 500  # stopping temperature
-stop_efrac: -2  # limiting ratio of electron to H densities
+stop_column_density: [22, 23]  # stopping column density
+
 
 # MISC COMMANDS
 CMB:  # include CMB heating
@@ -43,10 +42,3 @@ resolution: 1.0 # energy resolution relative to the default
 output_cont: true
 output_linelist: linelist-standard.dat
 iterate_to_convergence: true
-
-
-
-
-
-
-

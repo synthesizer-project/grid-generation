@@ -1,3 +1,4 @@
 # IONISATION PARAMETER 
+geometry: planeparallel
 ionisation_parameter_model: fixed  # which ionisation parameter model to use. `ref` assumes a varying ionisation parameter at a fixed reference age and metallicity
 ionisation_parameter: [0.0001, 0.001, 0.01, 0.1] # value of ionisation parameter at reference value, for U_model='ref'

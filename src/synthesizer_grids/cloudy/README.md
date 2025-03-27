@@ -1,45 +1,3 @@
-# synthesizer-grids
-
-This package includes scripts and tools for generating grids for use by the `synthesizer` synthetic observations package. There are two main modules: scripts for creating incident grids (grids containing the theoretical spectra produced by a model) and scripts for creating cloudy input files and then combining them to form a `synthesizer` grid.
-
-## Installation
-
-To use `synthesizer-grids` you'll first need to install it. To do this you can simply invoke the following at the root of the repo.
-
-```sh
-pip install .
-```
-
-This will install all submodules containing tools needed by the grid generation scripts.
-
-## Incident
-
-The first thing we need to do is create an incident grid. In some contexts this may be all you will need.
-
-Unfortunately, since SPS codes adopt heterogenous approaches to everything the code for generating `synthesizer` incident grids is equally heterogenous. **However**, many helper tools are provided to standardise the process as much as possible. The result of running any of the generation scripts will be a standardised output file that can be further processed (e.g. by `cloudy`) or used within `synthesizer`.
-
-The generation scripts can be found within `src/synthesizer-grids/incident` with sub-directories for each type of model (e.g. `sps` or `blackholes`). These generation scripts all take command line arguments. These commandline arguments can be seen by running the script with the help flag.
-
-```sh
-python <script>.py --help
-```
-
-Most models only take the standard arguments, but others can include other options. Here is an example `--help` output from the BC03 SPS model containing the default arguments.
-
-```sh
-usage: install_bc03.py [-h] --grid_dir GRID_DIR [--input_dir INPUT_DIR] [--download]
-
-BC03 download and grid creation
-
-options:
-  -h, --help              show this help message and exit
-  --grid_dir GRID_DIR     The grid file path
-  --input_dir INPUT_DIR   The input file path
-  --download, -d          Should the data be downloaded?
-```
-
-Note that all scripts will only download the data needed for the model if the download flag is set. This means the data need only be downloaded once for each model.
-
 ## Cloudy photoionisation modelling pipeline
 
 This set of scripts facilitates the creation of new sets of grids with photoionisation modelling. This adds additional spectra (transmission, nebular, nebular_continuum) and adds line quantities (luminosities and continuum values).
@@ -112,6 +70,3 @@ python create_synthesizer_grid.py \
   --cloudy-paramfile-extra=test_suite/reference_ionisation_parameter
 ```
 
-## Contributing
-
-Contributions welcome. Please read the contributing guidelines [here](https://github.com/flaresimulations/synthesizer/blob/main/docs/CONTRIBUTING.md).

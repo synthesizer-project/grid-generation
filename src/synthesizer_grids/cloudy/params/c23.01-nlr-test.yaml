@@ -5,7 +5,7 @@
 cloudy_version: c23.01
 
 # ABUNDANCE PATTERN AND DEPLETION
-metallicities: [0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.05]
+metallicities: [0.001, 0.01]
 reference_abundance: GalacticConcordance # the reference abundance pattern to assume
 alpha_enhancement: 0.0  # alpha element enhancement
 abundance_scalings: 
@@ -24,7 +24,7 @@ geometry: planeparallel
 ionisation_parameter_model: fixed  # which ionisation parameter model to use. `ref` assumes a varying ionisation parameter at a fixed reference age and metallicity
 ionisation_parameter: [0.001, 0.01, 0.1]  # value of ionisation 
 # DENSITY
-hydrogen_density: [1.0e+2, 1.0e+3, 1.0e+4, 1.0e+5]  
+hydrogen_density: [1.0e+3, 1.0e+4]  
 
 # STOPPING CRITERIA
 stop_T: 500  # stopping temperature

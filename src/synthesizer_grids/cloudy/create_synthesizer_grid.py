@@ -5,24 +5,22 @@ synthesizer grid is a HDF5 file that contains the spectra and line luminosities
 from cloudy outputs.
 
 Example usage:
-    python create_synthesizer_grid.py --grid-dir /path/to/grid
-        --cloudy-dir /path/to/cloudy --incident-grid incident_grid.hdf5
-        --cloudy-params c17.03-sps --include-spectra True --replace
-        --line-calc-method linelist
+
 """
 
 import os
-import shutil
+import re
 
-import h5py
 import numpy as np
-import yaml
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
 from synthesizer.sed import Sed
 from synthesizer.units import has_units
 from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, s, yr
-from utils import get_grid_props_cloudy
+from utils import (
+    get_cloudy_params,
+    get_grid_props_cloudy,
+)
 
 from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
@@ -30,10 +28,41 @@ from synthesizer_grids.parser import Parser
 # Create dictionary of commonly used units for grid axes
 axes_units = {
     "reference_ionisation_parameter": dimensionless,
+    "fixed_ionisation_parameter": dimensionless,
+    "depletion_scale": dimensionless,
+    "z": dimensionless,
     "ionisation_parameter": dimensionless,
     "ages": yr,
     "metallicities": dimensionless,
     "hydrogen_density": cm ** (-3),
+    "stop_column_density": dimensionless,
+    "alpha_enhancement": dimensionless,
+    "abundance_scalings.nitrogen_to_oxygen": dimensionless,
+    "abundance_scalings.carbon_to_oxygen": dimensionless,
+}
+
+log_on_read_dict = {
+    "reference_ionisation_parameter": True,
+    "fixed_ionisation_parameter": True,
+    "depletion_scale": False,
+    "z": False,
+    "ionisation_parameter": True,
+    "hydrogen_density": True,
+    "stop_column_density": False,
+    "alpha_enhancement": False,
+    "abundance_scalings.nitrogen_to_oxygen": False,
+    "abundance_scalings.carbon_to_oxygen": False,
+}
+
+pluralisation_of_axes = {
+    "z": "redshifts",
+    "metallicities": "metallicities",
+    "ionisation_parameter": "ionisation_parameters",
+    "hydrogen_density": "hydrogen_densities",
+    "depletion_scale": "depletion_scales",
+    "stop_column_density": "column_densities",
+    "alpha_enhancement": "alpha_enhancements",
+    "reference_ionisation_parameter": "reference_ionisation_parameters",
 }
 
 
@@ -41,8 +70,8 @@ def create_empty_grid(
     grid_dir,
     incident_grid_name,
     new_grid_name,
-    params,
-    grid_params,
+    new_axes_values,
+    photoionisation_parameters,
 ):
     """
     Create an empty Synthesizer grid file based on an existing incident grid.
@@ -54,16 +83,18 @@ def create_empty_grid(
             Name of the incident grid file we ran through cloudy.
         new_grid_name (str):
             Name of the new grid file.
-        params (dict):
-            Dictionary of parameters to be saved in the grid file.
-        grid_params (dict):
-            Dictionary of grid parameters.
+        new_axes_values (dict):
+            Dictionary of the new axes values.
+        photoionisation_params (dict):
+            Dictionary of photoionisation modelling parameters.
 
     Returns:
         out_grid (GridFile):
             The newly created grid file.
         incident_grid (GridFile):
             The incident grid file.
+        shape (tuple)
+            The shape of the new grid.
     """
     # Open the parent incident grid
     incident_grid = Grid(
@@ -86,11 +117,7 @@ def create_empty_grid(
     out_grid.write_model_metadata(incident_grid._model_metadata)
 
     # Set a list of the axes including the incident and new grid axes
-    axes = list(incident_grid.axes) + list(grid_params.keys())
-
-    # Add the incident grid parameters to grid_params
-    for axis in incident_grid.axes:
-        grid_params[axis] = getattr(incident_grid, axis)
+    new_axes = list(new_axes_values.keys())
 
     # Get properties of the grid
     (
@@ -100,7 +127,7 @@ def create_empty_grid(
         mesh,
         model_list,
         index_list,
-    ) = get_grid_props_cloudy(axes, grid_params, verbose=True)
+    ) = get_grid_props_cloudy(new_axes, new_axes_values, verbose=False)
 
     # We want to copy over log10_specific_ionising_luminosity from the
     # incident grid to allow us to normalise the cloudy outputs.
@@ -119,7 +146,7 @@ def create_empty_grid(
     for ion in incident_grid.log10_specific_ionising_lum.keys():
         # If there are no additional axes simply copy over the incident
         # .log10_specific_ionising_lum .
-        if len(axes) == len(incident_grid.axes):
+        if len(new_axes) == len(incident_grid.axes):
             out_grid.write_dataset(
                 key=f"log10_specific_ionising_luminosity/{ion}",
                 data=incident_grid.log10_specific_ionising_lum[ion]
@@ -147,9 +174,6 @@ def create_empty_grid(
                 log_on_read=False,
             )
 
-    # Add attribute with the full grid axes
-    out_grid.write_attribute(group="/", attr_key="axes", data=axes)
-
     # Copy over the weight attribute from the incident grid
     weight_var = getattr(incident_grid, "_weight_var", None)
     if weight_var is None:
@@ -160,12 +184,19 @@ def create_empty_grid(
         data=weight_var,
     )
 
+    print(incident_grid._extract_axes)
+
     # Now write out the grid axes, we first do the incident grid axes so we
     # can extract their metadata and then any extras
-    for axis, log_on_read in zip(
-        incident_grid.axes, incident_grid._logged_axes
+    for axis, extract_axis in zip(
+        incident_grid.axes, incident_grid._extract_axes
     ):
         # Write out this axis (we can get everything we need from the incident)
+        if extract_axis != axis:
+            log_on_read = True
+        else:
+            log_on_read = False
+
         out_grid.write_dataset(
             key=f"axes/{axis}",
             data=getattr(incident_grid, axis),
@@ -174,29 +205,39 @@ def create_empty_grid(
         )
 
     # Now write out the new grid axes if there are any
-    for axis in axes:
+    # List of new grid axes including pluralised form
+    new_axes_for_grid = []
+    for axis in new_axes:
         # Skip the one we did above
         if axis in incident_grid.axes:
+            new_axes_for_grid.append(axis)
             continue
+
+        if axis in pluralisation_of_axes.keys():
+            pluralised_axis = pluralisation_of_axes[axis]
+            new_axes_for_grid.append(pluralised_axis)
+        else:
+            raise ValueError("No pluralisation set for axis")
 
         # If we have units in the grid_params dictionary already then use
         # these, otherwise use the axes_units dictionary, if we don't have
         # units for the axis then raise an error.
-        if has_units(grid_params[axis]):
+        if has_units(new_axes_values[axis]):
             out_grid.write_dataset(
-                key=f"axes/{axis}",
-                data=grid_params[axis],
-                description=f"grid axes {axis} (introduced during cloudy run)",
-                log_on_read=False,
+                key=f"axes/{pluralised_axis}",
+                data=new_axes_values[axis],
+                description=f"grid axes {pluralised_axis} (introduced during"
+                "cloudy run)",
+                log_on_read=log_on_read_dict[axis],
             )
 
         # Ok, maybe its just a common axis that we have units for
         elif axis in axes_units:
             # Multiply values with the corresponding unit
-            values_with_units = grid_params[axis] * axes_units[axis]
+            values_with_units = new_axes_values[axis] * axes_units[axis]
 
             out_grid.write_dataset(
-                key=f"axes/{axis}",
+                key=f"axes/{pluralised_axis}",
                 data=values_with_units,
                 description=f"grid axes {axis} (introduced during cloudy run)",
                 log_on_read=False,
@@ -208,53 +249,15 @@ def create_empty_grid(
                 f"create_synthesizer_grid.py"
             )
 
+    # Add attribute with the full grid axes
+    out_grid.write_attribute(
+        group="/", attr_key="axes", data=new_axes_for_grid
+    )
+
     # Write out cloudy parameters
-    out_grid.write_cloudy_metadata(params)
+    out_grid.write_cloudy_metadata(photoionisation_parameters)
 
     return out_grid, incident_grid
-
-
-def load_grid_params(param_file="c23.01-sps"):
-    """
-    Read parameters from a yaml parameter file.
-
-    This sorts the parameters into fixed and grid axis parameters. Fixed
-    parameters are singular values that were fed into cloudy. Grid axis
-    parameters are parameters with a range of values which form one of the
-    axes of the eventual grid.
-
-    Arguments:
-        param_file (str)
-            Path to the the parameter file
-
-    Returns:
-        fixed_params (dict)
-            dictionary of parameters that are fixed
-        grid_params (dict)
-            dictionary of parameters that vary on the grid
-    """
-    # Open parameter file
-    with open(param_file, "r") as stream:
-        try:
-            params = yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            print(exc)
-
-    grid_params = {}
-    fixed_params = {}
-
-    # Loop over parameters
-    for k, v in params.items():
-        # If parameter is a list store it in the grid_parameters dictionary
-        # and convert to a numpy array
-        if isinstance(v, list):
-            grid_params[k] = np.array(list(map(float, v)))
-
-        # Otherwise store it in fixed_params dictionary
-        else:
-            fixed_params[k] = v
-
-    return fixed_params, grid_params
 
 
 def get_grid_properties_hf(hf, verbose=True):
@@ -292,19 +295,25 @@ def get_grid_properties_hf(hf, verbose=True):
 
 
 def check_cloudy_runs(
-    out_grid,
+    new_grid_name,
     cloudy_dir,
-    replace=False,
-    files_to_check=["cont"],
+    incident_index_list,
+    photoionisation_index_list,
+    files_to_check=["emergent_elin"],
 ):
     """
     Check that all the cloudy runs have run properly.
 
     Args:
-        out_grid (GridFile)
-            The grid file to check.
+        new_grid_name
+            The name of the new grid (also the subdirectory wher the cloudy
+            runs are stored)
         cloudy_dir (str)
             Parent directory for the cloudy runs.
+        incident_index_list (list)
+            List of incident grid points
+        photoionisation_index_list (list)
+            List of photoionisation grid points
         replace (boolean)
             If a run has failed simply replace the model with the previous one.
         files_to_check (list)
@@ -314,108 +323,77 @@ def check_cloudy_runs(
         failed_list : list
             List of models that have failed.
     """
-    # Get the properties of the grid
-    axes = out_grid.read_attribute("axes")
-    axes_values = {
-        axis: out_grid.read_dataset(f"axes/{axis}") for axis in axes
-    }
-    (
-        n_axes,
-        shape,
-        n_models,
-        mesh,
-        model_list,
-        index_list,
-    ) = get_grid_props_cloudy(axes, axes_values, verbose=True)
 
-    # List of failed models
+    # List of tuples describing failed models
     failed_list = []
-    for i, grid_params_ in enumerate(model_list):
-        infile = f"{cloudy_dir}/{i+1}"
-        failed = False
 
-        # Check if files exist
-        for ext in files_to_check:
-            if not os.path.isfile(infile + "." + ext):
-                failed = True
+    for incident_index, incident_index_tuple in enumerate(incident_index_list):
+        for photoionisation_index, photoionisation_index_tuple in enumerate(
+            photoionisation_index_list
+        ):
+            # The infile
+            infile = (
+                f"{cloudy_dir}/{new_grid_name}/"
+                f"{incident_index}/{photoionisation_index}"
+            )
 
-        # If they exist also check they have size >0
-        if not failed:
+            failed = False
+
+            # Check if files exist
             for ext in files_to_check:
-                if os.path.getsize(infile + "." + ext) < 1000:
+                if not os.path.isfile(infile + "." + ext):
                     failed = True
 
-        if failed:
-            print(i + 1, model_list[i])
-            failed_list.append(i + 1)
-
-            """
-            If replace is specified, instead replace the grid point with
-            the previous one. NOTE: this should be a last resort if the
-            cloudy runs of a small number of grid points are consistently
-            failing.
-            """
-            if replace:
+            # If they exist also check they have size >0
+            if not failed:
                 for ext in files_to_check:
-                    shutil.copyfile(
-                        f"{cloudy_dir}/{i}.{ext}",
-                        infile + f".{ext}",
-                    )
+                    if os.path.getsize(infile + "." + ext) < 100:
+                        failed = True
 
-    # If the files have been replace set the failed list to empty so the
-    # rest of the code can run.
-    if replace:
-        failed_list = []
+            # Record models that have failed
+            if failed:
+                print(incident_index, photoionisation_index)
+                failed_list.append((incident_index, photoionisation_index))
+
     return failed_list
 
 
 def add_spectra(
-    out_grid,
-    incident_grid,
-    grid_name,
+    new_grid,
+    new_grid_name,
     cloudy_dir,
+    incident_index_list,
+    photoionisation_index_list,
+    new_shape,
     spec_names=("incident", "transmitted", "nebular", "linecont"),
-    weight="initial_masses",
     norm_by_q=True,
 ):
     """
     Open cloudy spectra and add them to the grid.
 
     Args:
-        out_grid (GridFile)
+        new_grid (GridFile)
             The grid file to add the spectra to.
-        incident_grid (GridFile)
-            The incident grid.
+        new_grid_name (str)
+            The name of the new grid.
         cloudy_dir (str)
             Parent directory for the cloudy runs.
+        incident_index_list (list)
+            List of incident grid points
+        photoionisation_index_list (list)
+            List of photoionisation grid points
         spec_names (list)
             The names of the spectra to save (default is incident, transmitted,
             nebular and linecont).
-        weight (str)
-            The weight variable by which the spectra have been normalised. For
-            example, most SPS models are per initial stellar mass, so the
-            weight variable would be 'initial_masses', the Synthesizer
-            variable.
+        shape (ndarray)
+            The shape of the new grid.
         norm_by_q (bool)
             If True, the spectra are normalised by the specific ionising
             photon luminosity calculated from the incident spectrum.
     """
-    # Get the properties of the grid
-    axes = out_grid.read_attribute("axes")
-    axes_values = {
-        axis: out_grid.read_dataset(f"axes/{axis}") for axis in axes
-    }
-    (
-        n_axes,
-        shape,
-        n_models,
-        mesh,
-        model_list,
-        index_list,
-    ) = get_grid_props_cloudy(axes, axes_values, verbose=True)
 
     # Determine the cloudy version...
-    cloudy_version = out_grid.read_attribute(
+    cloudy_version = new_grid.read_attribute(
         "cloudy_version",
         group="CloudyParams",
     )
@@ -428,11 +406,11 @@ def add_spectra(
 
     # Read first spectra from the first grid point to get length and
     # wavelength grid.
-    lam = cloudy.read_wavelength(f"{cloudy_dir}/1")
+    lam = cloudy.read_wavelength(f"{cloudy_dir}/{new_grid_name}/0/0")
 
     # Write the spectra names... for some reason (not sure why since .keys()
     # gives the same result)
-    out_grid.write_attribute(group="/", attr_key="spec_names", data=spec_names)
+    new_grid.write_attribute(group="/", attr_key="spec_names", data=spec_names)
 
     # Number of wavelength points
     nlam = len(lam)
@@ -442,225 +420,247 @@ def add_spectra(
 
     # Make spectral grids and set them to zero
     for spec_name in spec_names:
-        spectra[spec_name] = np.zeros((*shape, nlam))
+        spectra[spec_name] = np.zeros((*new_shape, nlam))
 
     # Array for holding the normalisation which is calculated below and
     # used by lines
-    spectra["normalisation"] = np.ones(shape)
+    spectra["normalisation"] = np.ones(new_shape)
 
-    # Loop over the grid points
-    for i, indices in enumerate(index_list):
-        indices = tuple(indices)
-
-        # Define the infile (cloudy output file)
-        infile = f"{cloudy_dir}/{i+1}"
-
-        # Read the continuum file containing the spectra
-        spec_dict = cloudy.read_continuum(infile, return_dict=True)
-
-        # Calculate the specific ionising photon luminosity and use this to
-        # renormalise the spectrum.
-        if norm_by_q:
-            # Create sed object
-            sed = Sed(
-                lam=lam * Angstrom,
-                lnu=spec_dict["incident"] * erg / s / Hz,
+    for incident_index, incident_index_tuple in enumerate(incident_index_list):
+        for photoionisation_index, photoionisation_index_tuple in enumerate(
+            photoionisation_index_list
+        ):
+            # Get the indices of the grid_point
+            indices = tuple(incident_index_tuple) + tuple(
+                photoionisation_index_tuple
             )
 
-            # Calculate Q
-            ionising_photon_production_rate = (
-                sed.calculate_ionising_photon_production_rate(
-                    ionisation_energy=13.6 * eV, limit=100
+            # The infile
+            infile = (
+                f"{cloudy_dir}/{new_grid_name}/"
+                f"{incident_index}/{photoionisation_index}"
+            )
+
+            # Read the continuum file containing the spectra
+            spec_dict = cloudy.read_continuum(infile, return_dict=True)
+
+            # Calculate the specific ionising photon luminosity and use this to
+            # renormalise the spectrum.
+            if norm_by_q:
+                # Create sed object
+                sed = Sed(
+                    lam=lam * Angstrom,
+                    lnu=spec_dict["incident"] * erg / s / Hz,
                 )
-            )
 
-            # Calculate normalisation
-            normalisation = out_grid.read_dataset(
-                "log10_specific_ionising_luminosity/HI",
-                indices=indices,
-            ) - np.log10(ionising_photon_production_rate)
+                # Calculate Q
+                ionising_photon_production_rate = (
+                    sed.calculate_ionising_photon_production_rate(
+                        ionisation_energy=13.6 * eV, limit=100
+                    )
+                )
 
-            # Save normalisation for later use (rescaling lines)
-            spectra["normalisation"][indices] = 10**normalisation
+                # Calculate normalisation
+                normalisation = new_grid.read_dataset(
+                    "log10_specific_ionising_luminosity/HI",
+                    indices=indices,
+                ) - np.log10(ionising_photon_production_rate)
 
-        # Save the normalised spectrum to the correct grid point
-        for spec_name in spec_names:
-            spectra[spec_name][indices] = (
-                spec_dict[spec_name] * spectra["normalisation"][indices]
-            )
+                # Save normalisation for later use (rescaling lines)
+                spectra["normalisation"][indices] = 10**normalisation
+
+            # Save the normalised spectrum to the correct grid point
+            for spec_name in spec_names:
+                spectra[spec_name][indices] = (
+                    spec_dict[spec_name] * spectra["normalisation"][indices]
+                )
 
     # Apply units to the spectra
     for spec in spectra:
         spectra[spec] *= erg / s / Hz
 
     # Write the spectra out
-    weight_var = getattr(incident_grid, "_weight_var", None)
-    if weight_var is None:
-        weight_var = "None"
-    out_grid.write_spectra(
+    new_grid.write_spectra(
         spectra,
         wavelength=lam * Angstrom,
-        weight=weight_var,  # this is written already but harmless
     )
 
-    return spectra
+    return lam, spectra
 
 
 def add_lines(
-    grid_name,
-    grid_dir,
+    new_grid,
+    new_grid_name,
     cloudy_dir,
+    incident_index_list,
+    photoionisation_index_list,
+    new_shape,
+    lam=None,
+    spectra=None,
     line_type="linelist",
-    lines_to_include=False,
-    include_spectra=True,
 ):
     """
     Open cloudy lines and add them to the HDF5 grid
 
     Arguments:
-        grid_name : str
-            Name of the grid
-        grid_dir : str
-            Parent directory for the grids.
-        cloudy_dir : str
+        new_grid (GridFile)
+            The grid file to add the spectra to.
+        new_grid_name (str)
+            The name of the new grid.
+        cloudy_dir (str)
             Parent directory for the cloudy runs.
-        line_type : str
+        incident_index_list (list)
+            List of incident grid points
+        photoionisation_index_list (list)
+            List of photoionisation grid points
+        new_shape (ndarray)
+            The shape of the new grid.
+        lam (ndarray)
+            The wavelength grid of the spectra.
+        spectra (bool)
+            The spectra.
+        line_type (str)
             The type of line file to use (linelist, lines)
-        dlog10_specific_ionising_lum
-            The difference between the original and cloudy
-            log10_specific_ionising_lum used for rescaling the cloudy spectra
     """
 
-    # open the new grid
-    with h5py.File(f"{grid_dir}/{grid_name}", "a") as hf:
-        # Get the properties of the grid including the dimensions etc.
-        (
-            axes,
-            n_axes,
-            shape,
-            n_models,
-            mesh,
-            model_list,
-            index_list,
-        ) = get_grid_properties_hf(hf)
+    if spectra is not None:
+        calculate_continuum = True
+    else:
+        calculate_continuum = False
 
-        # Determine the cloudy version...
-        cloudy_version = out_grid.read_attribute(
-            "cloudy_version",
-            group="CloudyParams",
+    # Determine the cloudy version...
+    cloudy_version = new_grid.read_attribute(
+        "cloudy_version",
+        group="CloudyParams",
+    )
+
+    # ... and use to select the correct module.
+    if cloudy_version.split(".")[0] == "c23":
+        cloudy = cloudy23
+    elif cloudy_version.split(".")[0] == "c17":
+        cloudy = cloudy17
+
+    # Open the first linelist and use it to populate the keys
+    with open(f"{cloudy_dir}/{new_grid_name}/0/linelist.dat") as file:
+        linelist = file.readlines()
+        # strip escape character
+        lines_to_include = [
+            re.sub(r"[\x00-\x1F\x7F]", "", s) for s in linelist
+        ]
+
+    # Calculate number of lines
+    nlines = len(lines_to_include)
+
+    print(f"number of lines included: {nlines}")
+
+    # Set up the lines dictionary
+    lines = {}
+
+    # Define output quantities
+
+    # We always save luminosity...
+    lines["luminosity"] = np.empty((*new_shape, nlines))
+
+    # ... but only save continuum values if spectra are provided.
+    if calculate_continuum:
+        continuum_quantities = [
+            "transmitted",
+            "nebular_continuum",
+            "total_continuum",
+        ]
+
+        spectra_ = {}
+
+        # Calculate transmitted_contiuum
+        spectra_["transmitted"] = spectra["transmitted"]
+
+        # Calculate nebular_contiuum
+        spectra_["nebular_continuum"] = (
+            spectra["nebular"] - spectra["linecont"]
         )
 
-        # ... and use to select the correct module.
-        if cloudy_version.split(".")[0] == "c23":
-            cloudy = cloudy23
-        elif cloudy_version.split(".")[0] == "c17":
-            cloudy = cloudy17
+        # Calculate total_continuum. Note this is not the same as adding
+        #  nebular and transmitted since that would include emission lines.
+        spectra_["total_continuum"] = (
+            spectra_["nebular_continuum"] + spectra_["transmitted"]
+        )
 
-        # delete lines group if it already exists
-        if "lines" in hf:
-            del hf["lines"]
+        # Define output arrays
+        for continuum_quantity in continuum_quantities:
+            lines[continuum_quantity] = np.empty((*new_shape, nlines))
 
-        # define spectra
-        if include_spectra:
-            spectra = hf["spectra"]
-            normalisation = spectra["normalisation"][:]
-            lam = spectra["wavelength"][:]
+    # Loop over incident models and photoionisation models
+    for incident_index, incident_index_tuple in enumerate(incident_index_list):
+        for photoionisation_index, photoionisation_index_tuple in enumerate(
+            photoionisation_index_list
+        ):
+            # Get the indices of the grid_point
+            indices = tuple(incident_index_tuple) + tuple(
+                photoionisation_index_tuple
+            )
 
-        # create group for holding lines
-        lines = hf.create_group("lines")
+            # The infile
+            infile = (
+                f"{cloudy_dir}/{new_grid_name}/"
+                f"{incident_index}/{photoionisation_index}"
+            )
 
-        if line_type == "linelist":
-            infile = f"{cloudy_dir}/1"
-            lines_to_include, _, _ = cloudy.read_linelist(
+            # Read line quantities
+            ids, line_wavelengths, luminosities = cloudy.read_linelist(
                 infile, extension="emergent_elin"
             )
 
-        # set up output arrays
-        for line_id in lines_to_include:
-            lines[f"{line_id}/luminosity"] = np.zeros(shape)
-            lines[f"{line_id}/transmitted_continuum"] = np.zeros(shape)
-            lines[f"{line_id}/nebular_continuum"] = np.zeros(shape)
-            lines[f"{line_id}/continuum"] = np.zeros(shape)
+            # re-order by wavelength
+            sorted_indices = np.argsort(line_wavelengths)
+            ids = ids[sorted_indices]
+            luminosities = luminosities[sorted_indices]
+            line_wavelengths = line_wavelengths[sorted_indices]
 
-        for i, indices in enumerate(index_list):
-            # convert indices array to tuple
-            indices = tuple(indices)
+            # If we're on the first grid point save the wavelength grid
+            if (incident_index == 0) and (photoionisation_index == 0):
+                lines["wavelength"] = line_wavelengths
+                # for id, lam in zip(ids, sorted_indices):
+                #     print(id, lam)
 
-            # define the infile
-            infile = f"{cloudy_dir}/{i+1}"
+                # Record list of IDs
+                lines["id"] = ids
 
-            # get TOTAL continuum spectra
-            if include_spectra:
-                nebular_continuum = (
-                    spectra["nebular"][indices] - spectra["linecont"][indices]
-                )
-                continuum = spectra["transmitted"][indices] + nebular_continuum
+            # If spectra have been calculated extract the normalisation ..
+            if calculate_continuum:
+                normalisation = spectra["normalisation"][indices]
 
-            # get line quantities  <--- THIS NEEDS TO CHANGE
-
-            if line_type == "lines":
-                (
-                    id,
-                    blend,
-                    wavelength,
-                    intrinsic,
-                    luminosity,
-                ) = cloudy.read_lines(infile)
-
-                # identify lines we want to keep
-                s = np.nonzero(np.in1d(id, np.array(lines_to_include)))[0]
-
-                id = id[s]
-                wavelength = wavelength[s]
-                luminosity = luminosity[s]
-
-            elif line_type == "linelist":
-                id, wavelength, luminosity = cloudy.read_linelist(
-                    infile, extension="emergent_elin"
-                )
-
+            # Otherwise set the normalisation to unity
             else:
-                raise ValueError(
-                    f"Unrecognised line type: {line_type} "
-                    "(must be 'lines' or 'linelist')"
-                )
+                normalisation = 1.0
 
-            for id_, wavelength_, luminosity_ in zip(
-                id, wavelength, luminosity
-            ):
-                line = lines[id_]
+            # Calculate line luminosity and save it. Uses normalisation
+            # from spectra. Units are erg/s
+            lines["luminosity"][indices] = luminosities * normalisation
 
-                # save line wavelength
-                line.attrs["wavelength"] = wavelength_
+            # Calculate continuum luminosities. Units are erg/s/Hz.
+            if calculate_continuum:
+                for continuum_quantity in continuum_quantities:
+                    lines[continuum_quantity][indices] = np.interp(
+                        line_wavelengths,
+                        lam,
+                        spectra_[continuum_quantity][indices],
+                    )
 
-                # if spectra have been calculated pull the normalisation
-                if include_spectra:
-                    norm = normalisation[indices]
-                else:
-                    norm = 1.0
+    # Apply units to the wavelength
+    lines["wavelength"] *= Angstrom
 
-                # Calculate line luminosity and save it. Uses normalisation
-                # from spectra.
-                line["luminosity"][indices] = luminosity_ * norm  # erg s^-1
+    # Apply units to the lines
+    lines["luminosity"] *= erg / s
 
-                if include_spectra:
-                    # Calculate transmitted continuum at the line wavelength
-                    # and save it.
-                    line["transmitted_continuum"][indices] = np.interp(
-                        wavelength_, lam, spectra["transmitted"][indices]
-                    )  # erg s^-1 Hz^-1
+    # If continuum values are calculated add units
+    if calculate_continuum:
+        for continuum_quantity in continuum_quantities:
+            lines[continuum_quantity] *= erg / s / Hz
 
-                    # calculate nebular continuum at the line wavelength and
-                    # save it.
-                    line["nebular_continuum"][indices] = np.interp(
-                        wavelength_, lam, nebular_continuum
-                    )  # erg s^-1 Hz^-1
-
-                    # calculate total continuum at the line wavelength and
-                    # save it.
-                    line["continuum"][indices] = np.interp(
-                        wavelength_, lam, continuum
-                    )  # erg s^-1 Hz^-1
+    # Write the lines out
+    new_grid.write_lines(
+        lines,
+    )
 
 
 if __name__ == "__main__":
@@ -669,115 +669,221 @@ if __name__ == "__main__":
         description="Create Synthesizer HDF5 grid files from cloudy outputs.",
         cloudy_args=True,
     )
+
+    # Add additional parameters which are specific to this script
+
+    # Should we include the spectra in the grid?
+    parser.add_argument(
+        "--include-spectra",
+        action="store_true",
+        help="Should the spectra be included in the grid?",
+        default=False,
+        required=False,
+    )
+
+    # Should we normalise by the specific ionising luminosity?
+    parser.add_argument(
+        "--norm-by-Q",
+        "-Q",
+        default=True,
+        required=False,
+        help="Should the grid be normalised by the specific "
+        "ionising luminosity? (default is True)",
+    )
+
+    # Parse arguments
     args = parser.parse_args()
 
     # Unpack arguments
     grid_dir = args.grid_dir
-    cloudy_dir = args.cloudy_dir
+    cloudy_dir = args.cloudy_output_dir
     incident_grid_name = args.incident_grid
-    new_grid_name = (
-        args.cloudy_grid
-        if args.cloudy_grid is not None
-        else incident_grid_name
-    )
-    cloudy_paramfile = args.cloudy_params
-    extra_cloudy_paramfile = args.cloudy_params_addition
+    cloudy_param_file = args.cloudy_paramfile
+    extra_cloudy_param_file = args.cloudy_paramfile_extra
     include_spectra = args.include_spectra
-    replace_failed = args.replace
-    line_type = args.line_calc_method
-    machine = args.machine
+    # line_type = args.line_calc_method
     verbose = args.verbose
 
-    # Check for extensions
-    if cloudy_paramfile.split(".")[-1] != "yaml":
-        cloudy_paramfile += ".yaml"
-    if extra_cloudy_paramfile is not None:
-        if extra_cloudy_paramfile.split(".")[-1] != "yaml":
-            extra_cloudy_paramfile += ".yaml"
-    if incident_grid_name.split(".")[-1] != "hdf5":
-        incident_grid_name += ".hdf5"
-    if new_grid_name.split(".")[-1] != "hdf5":
-        new_grid_name += ".hdf5"
+    print(" " * 80)
+    print("-" * 80)
+    print(incident_grid_name)
+    print(cloudy_param_file)
+    print(extra_cloudy_param_file)
 
-    # Define the grid name (the user has either set this or its the same as
-    # the incident grid name with a cloudy suffix)
-    if new_grid_name is None:
-        new_grid_name = incident_grid_name
-    if "cloudy" not in new_grid_name:
-        new_grid_name = f"{new_grid_name.replace('.hdf5', '')}_cloudy.hdf5"
+    # Check for extensions
+    # Create _file and _name versions (with and w/o extensions)
+
+    if cloudy_param_file.split(".")[-1] != "yaml":
+        cloudy_param_name = cloudy_param_file
+        cloudy_param_file += ".yaml"
+    else:
+        cloudy_param_name = "".join(cloudy_param_file.split(".")[:-1])
+
+    if extra_cloudy_param_file is not None:
+        if extra_cloudy_param_file.split(".")[-1] != "yaml":
+            extra_cloudy_param_name = extra_cloudy_param_file
+            extra_cloudy_param_file += ".yaml"
+        else:
+            extra_cloudy_param_name = "".join(
+                extra_cloudy_param_file.split(".")[:-1]
+            )
+
+    if incident_grid_name.split(".")[-1] != "hdf5":
+        incident_grid_file = incident_grid_name + ".hdf5"
+    else:
+        incident_grid_file = incident_grid_name
+        incident_grid_name = "".join(incident_grid_name.split(".")[:-1])
+
+    # Get name of new grid (concatenation of incident_grid and cloudy
+    # parameter file)
+    new_grid_name = f"{incident_grid_name}_cloudy-{cloudy_param_name}"
+
+    # If an additional parameter set append this to the new grid name
+    if extra_cloudy_param_file:
+        # Ignore the directory part if it exists
+        extra_cloudy_param_name = extra_cloudy_param_name.split("/")[-1]
+        # Append the new_grid_name with the additional name
+        new_grid_name += "-" + extra_cloudy_param_name
+
+    new_grid_file = new_grid_name + ".hdf5"
+    print(cloudy_param_name, cloudy_param_file)
+    print(new_grid_name, new_grid_file)
+
+    # Open the incident grid using synthesizer
+    incident_grid = Grid(
+        incident_grid_name,
+        grid_dir=grid_dir,
+        read_lines=False,
+    )
+
+    # Extract axes and axes values from the Grid
+    incident_axes = incident_grid.axes
+    incident_axes_values = incident_grid._axes_values
+
+    # Get properties of the incident grid
+    (
+        incident_n_axes,
+        incident_shape,
+        incident_n_models,
+        incident_mesh,
+        incident_model_list,
+        incident_index_list,
+    ) = get_grid_props_cloudy(
+        incident_axes, incident_axes_values, verbose=False
+    )
 
     # Load the cloudy parameters you are going to run
-    fixed_params, grid_params = load_grid_params(args.cloudy_params)
+    fixed_photoionisation_params, variable_photoionisation_params = (
+        get_cloudy_params(cloudy_param_file)
+    )
 
     # If an additional parameter set is provided supersede the default
-    # parameters with these and adjust the new grid name.
-    if args.cloudy_params_addition:
-        additional_fixed_params, additional_grid_params = load_grid_params(
-            args.cloudy_params_addition
+    # parameters with these.
+    if extra_cloudy_param_file:
+        (photoionisation_fixed_params_, photoionisation_variable_params_) = (
+            get_cloudy_params(extra_cloudy_param_file)
         )
-        fixed_params = fixed_params | additional_fixed_params
-        grid_params = grid_params | additional_grid_params
+        fixed_photoionisation_params |= photoionisation_fixed_params_
+        variable_photoionisation_params |= photoionisation_variable_params_
 
-    params = fixed_params | grid_params
+    print(fixed_photoionisation_params)
+    print(variable_photoionisation_params)
 
-    print(params)
+    # If we have photoionisation parameters that vary we need to calculate the
+    # model list
+    if len(variable_photoionisation_params) > 0:
+        # doesn't matter about the ordering of these
+        photoionisation_axes = list(variable_photoionisation_params.keys())
+
+        # get properties of the photoionsation grid
+        (
+            photoionisation_n_axes,
+            photoionisation_shape,
+            photoionisation_n_models,
+            photoionisation_mesh,
+            photoionisation_model_list,
+            photoionisation_index_list,
+        ) = get_grid_props_cloudy(
+            photoionisation_axes,
+            variable_photoionisation_params,
+            verbose=False,
+        )
+
+    # Else, we need to specify that the only photonionisation model is 0
+    else:
+        photoionisation_n_models = 1
+        photoionisation_index_list = [[]]
+        photoionisation_shape = ()
+
+    # Define the axes and values of the output grid
+    new_axes = incident_axes
+    new_axes_values = incident_axes_values
+
+    new_shape = tuple(incident_shape) + tuple(photoionisation_shape)
+    if verbose:
+        print("new shape:", new_shape)
+
+    # If there are photoionisation axes add these as well
+    if len(variable_photoionisation_params) > 0:
+        new_axes += photoionisation_axes
+        new_axes_values |= variable_photoionisation_params
+
+    print(new_axes)
+    for key, value in new_axes_values.items():
+        print(key, value)
 
     # Create empty synthesizer grid, this returns a GridFile object we can
     # add spectra and lines to below
-    out_grid, incident_grid = create_empty_grid(
+    new_grid, incident_grid = create_empty_grid(
         grid_dir,
         incident_grid_name,
-        new_grid_name,
-        params,
-        grid_params,
+        new_grid_file,
+        new_axes_values,
+        fixed_photoionisation_params,
     )
 
     # Check cloudy runs and potentially replace them by the nearest grid point
     # if they fail.
     failed_list = check_cloudy_runs(
-        out_grid,
+        new_grid_name,
         cloudy_dir,
-        replace=args.replace,
+        incident_index_list,
+        photoionisation_index_list,
     )
     print("list of failed cloudy runs:", failed_list)
 
-    # If any runs have failed prompt to re-run.
-    if len(failed_list) > 0:
-        # get number of failed runs
-        n_fail = len(failed_list)
-
-        print(f"ERROR: {n_fail} cloudy runs have failed.")
-
-        if args.machine == "apollo":
-            # apollo specific command
-            print("Re-run with this command:")
-            print(f"qsub -t 1:{n_fail} run_grid.job")
-
-            # replace input_names with list of failed runs
-            with open(
-                f"{cloudy_dir}/{incident_grid_name}/input_names.txt", "w"
-            ) as myfile:
-                myfile.write("\n".join(map(str, failed_list)))
+    # Save list of failed runs for re-running
 
     # If no runs have failed, go ahead and add spectra and lines.
-    else:
+    if len(failed_list) == 0:
         # Add spectra
         if include_spectra:
-            add_spectra(
-                out_grid,
-                incident_grid,
+            lam, spectra = add_spectra(
+                new_grid,
                 new_grid_name,
                 cloudy_dir,
+                incident_index_list,
+                photoionisation_index_list,
+                new_shape,
                 spec_names=("incident", "transmitted", "nebular", "linecont"),
-                weight="initial_masses",
                 norm_by_q=True,
             )
+            print("Added spectra")
+            print(spectra.keys())
+        else:
+            lam = None
+            spectra = None
 
-        # add lines
+        # Add lines
         add_lines(
+            new_grid,
             new_grid_name,
-            grid_dir,
             cloudy_dir,
+            incident_index_list,
+            photoionisation_index_list,
+            new_shape,
+            lam,
+            spectra,
             line_type="linelist",
-            include_spectra=include_spectra,
         )
+        print("Added lines")

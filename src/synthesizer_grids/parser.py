@@ -87,7 +87,7 @@ class Parser(argparse.ArgumentParser):
         """Add arguments for cloudy grids."""
         # Path to directory where cloudy runs are
         self.add_argument(
-            "--cloudy-dir",
+            "--cloudy-output-dir",
             type=str,
             required=True,
             help="The directory containing each "
@@ -103,78 +103,67 @@ class Parser(argparse.ArgumentParser):
             "used to generate the cloudy runs).",
         )
 
-        # The name for the new cloudy reprocessed grid (by default this
-        # is the same as the incident grid with a '_cloudy' suffix)
-        self.add_argument(
-            "--cloudy-grid",
-            type=str,
-            required=False,
-            default=None,
-            help="The name of the new cloudy reprocessed grid (defaults "
-            "to <incident_grid>_cloudy.hdf5).",
-        )
-
         # The cloudy parameters, including any grid axes
         self.add_argument(
-            "--cloudy-params",
+            "--cloudy-paramfile",
             type=str,
             required=False,
-            default="c17.03-sps",
+            default="c23.01-sps",
             help="The path to the cloudy parameter file.",
         )
 
         # A second cloudy parameter set which supersedes the above
         self.add_argument(
-            "--cloudy-params-addition",
+            "--cloudy-paramfile-extra",
             type=str,
             required=False,
             help="The path to the cloudy 'extra' parameter file.",
         )
 
-        # Should we include the spectra in the grid?
-        self.add_argument(
-            "--include-spectra",
-            type=bool,
-            action="store_true",
-            help="Should the spectra be included in the grid?",
-        )
+        # # Should we include the spectra in the grid?
+        # self.add_argument(
+        #     "--include-spectra",
+        #     type=bool,
+        #     action="store_true",
+        #     help="Should the spectra be included in the grid?",
+        # )
 
-        # Boolean flag as to whether to attempt to replace missing files
-        self.add_argument(
-            "--replace",
-            action="store_true",
-            help="Should missing files be replaced?",
-        )
+        # # Boolean flag as to whether to attempt to replace missing files
+        # self.add_argument(
+        #     "--replace",
+        #     action="store_true",
+        #     help="Should missing files be replaced?",
+        # )
 
-        # Define the line calculation method.
-        self.add_argument(
-            "--line-calc-method",
-            type=str,
-            default="lines",
-            required=False,
-            help="The method used to calculate the line fluxes "
-            "(either 'lines' or 'linelist')",
-        )
+        # # Define the line calculation method.
+        # self.add_argument(
+        #     "--line-calc-method",
+        #     type=str,
+        #     default="lines",
+        #     required=False,
+        #     help="The method used to calculate the line fluxes "
+        #     "(either 'lines' or 'linelist')",
+        # )
 
-        # Define the machine (for rerunning cloudy runs)
-        self.add_argument(
-            "--machine",
-            type=str,
-            default=None,
-            required=False,
-            help="The machine used to run the cloudy runs "
-            "(currently only supports apollo)",
-        )
+        # # Define the machine (for rerunning cloudy runs)
+        # self.add_argument(
+        #     "--machine",
+        #     type=str,
+        #     default=None,
+        #     required=False,
+        #     help="The machine used to run the cloudy runs "
+        #     "(currently only supports apollo)",
+        # )
 
-        # Should we normalise by the specific ionising luminosity?
-        self.add_argument(
-            "--norm-by-Q",
-            "-Q",
-            default=True,
-            required=False,
-            help="Should the grid be normalised by the specific "
-            "ionising luminosity? (default is True)",
-        )
+        # # Should we normalise by the specific ionising luminosity?
+        # self.add_argument(
+        #     "--norm-by-Q",
+        #     "-Q",
+        #     default=True,
+        #     required=False,
+        #     help="Should the grid be normalised by the specific "
+        #     "ionising luminosity? (default is True)",
+        # )
 
     def _add_alpha_args(self):
         """Add arguments for alpha enhancement."""
