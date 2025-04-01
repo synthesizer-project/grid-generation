@@ -14,7 +14,7 @@ import re
 import numpy as np
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
-from synthesizer.sed import Sed
+from synthesizer.emissions import Sed
 from synthesizer.units import has_units
 from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, s, yr
 from utils import (
