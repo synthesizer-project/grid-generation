@@ -7,17 +7,21 @@ import os
 
 import numpy as np
 from synthesizer.conversions import llam_to_lnu
+from unyt import Angstrom, Hz, dimensionless, erg, s, yr
+from utils import get_model_filename
+
 from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
-from unyt import Angstrom, Hz, dimensionless, erg, s, yr
 
 
-def make_grid(model, rotation, model_type, imf, input_dir, grid_dir):
+def make_grid(
+    synthesizer_model_name, rotation, model_type, imf, input_dir, grid_dir
+):
     """Main function to convert Maraston 2024 and
     produce grids used by synthesizer
     Args:
-        model (dict):
-            dictionary containing model parameters.
+        synthesizer_model_name (string):
+            name of the model to be saved.
         rotation (string):
             value of stellar rotation for the model,
             "0.00" for no rotation or "0.40" for rotation.
@@ -30,15 +34,10 @@ def make_grid(model, rotation, model_type, imf, input_dir, grid_dir):
             directory where the raw Maraston+24 files are read from.
         grid_dir (string):
             directory where the grids are created.
-        grid_dir (string):
-            directory where the grids are created.
     Returns:
         fname (string):
             output filename
     """
-
-    # Define output
-    out_filename = f"{grid_dir}/{sps_name}{model_type}_{imf}_{rotation}.hdf5"
 
     # Array of available metallicities
     metallicities = np.array([0.0003, 0.002, 0.006, 0.014, 0.02])
@@ -51,6 +50,9 @@ def make_grid(model, rotation, model_type, imf, input_dir, grid_dir):
         0.014: "+0.00",  # solar metallicity
         0.02: "+0.35",
     }
+
+    if model_type == "Tenc":
+        model_type = "_Tenc"
 
     # Open first raw data file to get age
     fn = (
@@ -71,7 +73,7 @@ def make_grid(model, rotation, model_type, imf, input_dir, grid_dir):
     spec = np.zeros((len(ages), len(metallicities), len(lam)))
 
     # Create the GridFile ready to take outputs
-    out_grid = GridFile(out_filename)
+    out_grid = GridFile(f"{grid_dir}/{synthesizer_model_name}.hdf5")
 
     log_on_read = {"ages": True, "metallicities": False}
 
@@ -118,14 +120,8 @@ if __name__ == "__main__":
     # Define the model metadata
     sps_name = "maraston24"
     rotations = ["0.00", "0.40"]
-    model_types = ["", "_Tenc"]
+    model_types = ["", "Tenc"]
     imfs = ["kr", "ss"]
-    max_stellar_masses = ["", "_300"]
-    model = {
-        "sps_name": sps_name,
-        "sps_version": False,
-        "alpha": False,
-    }
 
     input_dir = f"{args.input_dir}/{sps_name}"
 
@@ -136,7 +132,34 @@ if __name__ == "__main__":
     for imf in imfs:
         for model_type in model_types:
             for rotation in rotations:
-                print(imf, model_type, rotation)
+                if imf == "kr":
+                    imf_type = "kroupa"
+                if imf == "ss":
+                    imf_type = "salpeter"
+
+                if model_type == "Tenc":
+                    variant_name = f"Tenc_{rotation}"
+                if model_type == "":
+                    variant_name = rotation
+
+                model = {
+                    "sps_name": sps_name,
+                    "sps_version": False,
+                    "sps_variant": variant_name,
+                    "imf_type": imf_type,
+                    "imf_masses": [0.1, 100],
+                    "imf_slopes": False,
+                    "alpha": False,
+                }
+
+                synthesizer_model_name = get_model_filename(model)
+                print(synthesizer_model_name)
+
                 make_grid(
-                    model, rotation, model_type, imf, input_dir, grid_dir
+                    synthesizer_model_name,
+                    rotation,
+                    model_type,
+                    imf,
+                    input_dir,
+                    grid_dir,
                 )
