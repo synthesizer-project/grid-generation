@@ -1,5 +1,5 @@
 model: 'relqso-isotropic'
 log10masses: [6., 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
-log10accretion_rates_eddington: [-2.5,-2.,-1.5,-1.,-0.5,0.0, 0.5]
+log10accretion_rates_eddington: [-1.5, -1.25, -1., -0.5, -0.25, 0.0, 0.25, 0.5]
 cosine_inclinations: 0.5
 spins: [0,0.05, 0.9, 0.998]
