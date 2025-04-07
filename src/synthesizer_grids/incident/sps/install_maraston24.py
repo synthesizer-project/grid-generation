@@ -7,14 +7,16 @@ import os
 
 import numpy as np
 from synthesizer.conversions import llam_to_lnu
-from synthesizer_grids.grid_io import GridFile
-from synthesizer_grids.parser import Parser
 from unyt import Angstrom, Hz, dimensionless, erg, s, yr
 from utils import get_model_filename
 
+from synthesizer_grids.grid_io import GridFile
+from synthesizer_grids.parser import Parser
 
-def make_grid(synthesizer_model_name, rotation, model_type, imf, 
-              input_dir, grid_dir):
+
+def make_grid(
+    synthesizer_model_name, rotation, model_type, imf, input_dir, grid_dir
+):
     """Main function to convert Maraston 2024 and
     produce grids used by synthesizer
     Args:
@@ -48,7 +50,7 @@ def make_grid(synthesizer_model_name, rotation, model_type, imf,
         0.014: "+0.00",  # solar metallicity
         0.02: "+0.35",
     }
-    
+
     if model_type == "Tenc":
         model_type = "_Tenc"
 
@@ -130,17 +132,16 @@ if __name__ == "__main__":
     for imf in imfs:
         for model_type in model_types:
             for rotation in rotations:
-                
                 if imf == "kr":
                     imf_type = "kroupa"
                 if imf == "ss":
                     imf_type = "salpeter"
-                    
+
                 if model_type == "Tenc":
                     variant_name = f"Tenc_{rotation}"
                 if model_type == "":
                     variant_name = rotation
-                
+
                 model = {
                     "sps_name": sps_name,
                     "sps_version": False,
@@ -150,11 +151,15 @@ if __name__ == "__main__":
                     "imf_slopes": False,
                     "alpha": False,
                 }
-                
+
                 synthesizer_model_name = get_model_filename(model)
                 print(synthesizer_model_name)
-                    
+
                 make_grid(
-                    synthesizer_model_name, rotation, model_type, imf, 
-                    input_dir, grid_dir
+                    synthesizer_model_name,
+                    rotation,
+                    model_type,
+                    imf,
+                    input_dir,
+                    grid_dir,
                 )

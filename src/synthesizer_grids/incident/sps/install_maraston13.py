@@ -6,10 +6,11 @@ import os
 
 import numpy as np
 from synthesizer.conversions import llam_to_lnu
-from synthesizer_grids.grid_io import GridFile
-from synthesizer_grids.parser import Parser
 from unyt import Angstrom, Hz, dimensionless, erg, s, yr
 from utils import get_model_filename
+
+from synthesizer_grids.grid_io import GridFile
+from synthesizer_grids.parser import Parser
 
 
 def make_grid(synthesizer_model_name, imf, input_dir, grid_dir):
@@ -121,7 +122,6 @@ if __name__ == "__main__":
 
     # then run the rest
     for imf in imfs:
-        
         model = {
             "sps_name": sps_name,
             "sps_version": False,
@@ -130,9 +130,9 @@ if __name__ == "__main__":
             "imf_masses": [0.1, 100],
             "imf_slopes": False,
             "alpha": False,
-            }
-        
+        }
+
         synthesizer_model_name = get_model_filename(model)
         print(synthesizer_model_name)
-                
+
         make_grid(synthesizer_model_name, imf, input_dir, grid_dir)
