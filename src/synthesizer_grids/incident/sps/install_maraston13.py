@@ -13,7 +13,7 @@ from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
 
 
-def make_grid(synthesizer_model_name, imf, input_dir, grid_dir):
+def make_grid(model, imf, input_dir, grid_dir):
     """Main function to convert Maraston 2013 and
     produce grids used by synthesizer
     Args:
@@ -30,6 +30,9 @@ def make_grid(synthesizer_model_name, imf, input_dir, grid_dir):
         fname (string):
             output filename
     """
+
+    synthesizer_model_name = get_model_filename(model)
+    print(synthesizer_model_name)
 
     # define output
     out_filename = f"{grid_dir}/{synthesizer_model_name}.hdf5"
@@ -132,7 +135,4 @@ if __name__ == "__main__":
             "alpha": False,
         }
 
-        synthesizer_model_name = get_model_filename(model)
-        print(synthesizer_model_name)
-
-        make_grid(synthesizer_model_name, imf, input_dir, grid_dir)
+        make_grid(model, imf, input_dir, grid_dir)

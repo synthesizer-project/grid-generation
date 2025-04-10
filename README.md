@@ -114,4 +114,4 @@ python create_synthesizer_grid.py \
 
 ## Contributing
 
-Contributions welcome. Please read the contributing guidelines [here](https://github.com/flaresimulations/synthesizer/blob/main/docs/CONTRIBUTING.md).
+Contributions welcome. Please read the contributing guidelines [here](https://github.com/synthesizer-project/synthesizer/blob/main/docs/CONTRIBUTING.md).

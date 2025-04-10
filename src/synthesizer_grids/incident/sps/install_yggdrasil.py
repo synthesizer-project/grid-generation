@@ -31,10 +31,11 @@ import re
 import numpy as np
 import requests
 from spectres import spectres
-from synthesizer_grids.grid_io import GridFile
-from synthesizer_grids.parser import Parser
 from tqdm import tqdm
 from unyt import Hz, angstrom, c, dimensionless, erg, s, yr
+
+from synthesizer_grids.grid_io import GridFile
+from synthesizer_grids.parser import Parser
 
 
 def download_data(input_dir, ver, fcov):
