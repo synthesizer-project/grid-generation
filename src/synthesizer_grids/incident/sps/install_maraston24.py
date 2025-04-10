@@ -56,10 +56,12 @@ def make_grid(
 
     if model_type == "Tenc":
         model_type = "_Tenc"
+    if model_type == "Te":
+        model_type = ""
 
     # Open first raw data file to get age
     fn = (
-        f"{input_dir}/sed_ssp_M24_vini{rotation}{model_type}_{imf}"
+        f"{input_dir}/sed_ssp_M24_vini0.{rotation}{model_type}_{imf}"
         f"{metallicity_code[metallicities[0]]}"
     )
 
@@ -84,7 +86,7 @@ def make_grid(
     for imetal, metallicity in enumerate(metallicities):
         for ia, age_Gyr in enumerate(ages_Gyr):
             fn = (
-                f"{input_dir}/sed_ssp_M24_vini{rotation}{model_type}_{imf}"
+                f"{input_dir}/sed_ssp_M24_vini0.{rotation}{model_type}_{imf}"
                 f"{metallicity_code[metallicity]}"
             )
             ages_, _, lam_, llam_ = np.loadtxt(fn).T
@@ -122,8 +124,9 @@ if __name__ == "__main__":
 
     # Define the model metadata
     sps_name = "maraston24"
-    rotations = ["0.00", "0.40"]
-    model_types = ["", "Tenc"]
+    rotations = ["00", "40"]
+    
+    model_types = ["Te", "Tenc"]
     imfs = ["kr", "ss"]
 
     input_dir = f"{args.input_dir}/{sps_name}"
@@ -139,11 +142,8 @@ if __name__ == "__main__":
                     imf_type = "kroupa"
                 if imf == "ss":
                     imf_type = "salpeter"
-
-                if model_type == "Tenc":
-                    variant_name = f"Tenc_{rotation}"
-                if model_type == "":
-                    variant_name = rotation
+                    
+                variant_name = f"{model_type}{rotation}"
 
                 model = {
                     "sps_name": sps_name,
