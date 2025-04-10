@@ -15,13 +15,13 @@ from synthesizer_grids.parser import Parser
 
 
 def make_grid(
-    synthesizer_model_name, rotation, model_type, imf, input_dir, grid_dir
+    model, rotation, model_type, imf, input_dir, grid_dir
 ):
     """Main function to convert Maraston 2024 and
     produce grids used by synthesizer
     Args:
-        synthesizer_model_name (string):
-            name of the model to be saved.
+        model (dict):
+            dictionary containing model parameters.
         rotation (string):
             value of stellar rotation for the model,
             "0.00" for no rotation or "0.40" for rotation.
@@ -38,6 +38,9 @@ def make_grid(
         fname (string):
             output filename
     """
+    
+    synthesizer_model_name = get_model_filename(model)
+    print(synthesizer_model_name)
 
     # Array of available metallicities
     metallicities = np.array([0.0003, 0.002, 0.006, 0.014, 0.02])
@@ -152,11 +155,8 @@ if __name__ == "__main__":
                     "alpha": False,
                 }
 
-                synthesizer_model_name = get_model_filename(model)
-                print(synthesizer_model_name)
-
                 make_grid(
-                    synthesizer_model_name,
+                    model,
                     rotation,
                     model_type,
                     imf,
