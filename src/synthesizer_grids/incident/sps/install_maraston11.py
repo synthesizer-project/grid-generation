@@ -9,10 +9,11 @@ from pathlib import Path
 import numpy as np
 import wget
 from synthesizer.conversions import llam_to_lnu
-from synthesizer_grids.grid_io import GridFile
-from synthesizer_grids.parser import Parser
 from unyt import Angstrom, Hz, dimensionless, erg, s, yr
 from utils import get_model_filename
+
+from synthesizer_grids.grid_io import GridFile
+from synthesizer_grids.parser import Parser
 
 
 def download_data(

@@ -33,7 +33,7 @@ def make_grid(model, imf, input_dir, grid_dir):
 
     synthesizer_model_name = get_model_filename(model)
     print(synthesizer_model_name)
-    
+
     # define output
     out_filename = f"{grid_dir}/{synthesizer_model_name}.hdf5"
 

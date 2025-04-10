@@ -14,9 +14,7 @@ from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
 
 
-def make_grid(
-    model, rotation, model_type, imf, input_dir, grid_dir
-):
+def make_grid(model, rotation, model_type, imf, input_dir, grid_dir):
     """Main function to convert Maraston 2024 and
     produce grids used by synthesizer
     Args:
@@ -38,7 +36,7 @@ def make_grid(
         fname (string):
             output filename
     """
-    
+
     synthesizer_model_name = get_model_filename(model)
     print(synthesizer_model_name)
 
@@ -125,7 +123,7 @@ if __name__ == "__main__":
     # Define the model metadata
     sps_name = "maraston24"
     rotations = ["00", "40"]
-    
+
     model_types = ["Te", "Tenc"]
     imfs = ["kr", "ss"]
 
@@ -142,7 +140,7 @@ if __name__ == "__main__":
                     imf_type = "kroupa"
                 if imf == "ss":
                     imf_type = "salpeter"
-                    
+
                 variant_name = f"{model_type}{rotation}"
 
                 model = {
