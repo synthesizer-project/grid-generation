@@ -16,7 +16,7 @@ from synthesizer.emissions import Sed
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
 from synthesizer.units import has_units
-from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, s, yr
+from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, km, s, yr
 from utils import (
     get_cloudy_params,
     get_grid_props_cloudy,
@@ -39,6 +39,7 @@ axes_units = {
     "alpha_enhancement": dimensionless,
     "abundance_scalings.nitrogen_to_oxygen": dimensionless,
     "abundance_scalings.carbon_to_oxygen": dimensionless,
+    "turbulence": km / s,
 }
 
 log_on_read_dict = {
