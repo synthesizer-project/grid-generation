@@ -12,9 +12,9 @@ import os
 import re
 
 import numpy as np
+from synthesizer.emissions import Sed
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
-from synthesizer.emissions import Sed
 from synthesizer.units import has_units
 from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, s, yr
 from utils import (
@@ -217,7 +217,7 @@ def create_empty_grid(
             pluralised_axis = pluralisation_of_axes[axis]
             new_axes_for_grid.append(pluralised_axis)
         else:
-            raise ValueError("No pluralisation set for axis")
+            raise ValueError(f"No pluralisation set for {axis} axis")
 
         # If we have units in the grid_params dictionary already then use
         # these, otherwise use the axes_units dictionary, if we don't have
