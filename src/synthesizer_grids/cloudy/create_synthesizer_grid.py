@@ -58,6 +58,7 @@ pluralisation_of_axes = {
     "z": "redshifts",
     "metallicities": "metallicities",
     "ionisation_parameter": "ionisation_parameters",
+    "turbulence": "turbulences",
     "hydrogen_density": "hydrogen_densities",
     "depletion_scale": "depletion_scales",
     "stop_column_density": "column_densities",
