@@ -23,6 +23,10 @@ Warning: the nebular procesed grids here differ from the rest of the
 nebular processing implementation in synthesizer, where we self consistently
 run pure stellar spectra through CLOUDY. For full self consistency the
 nebular grids here should not be used, but we provide anyway for reference.
+
+Reference: Zackrisson, E., Rydberg, C.-E., Schaerer, D.,
+Ostlin, G. & Tuli, M. 2011, ApJ, 740, 13
+https://ui.adsabs.harvard.edu/abs/2011ApJ...740...13Z/abstract
 """
 
 import os
@@ -33,6 +37,7 @@ import requests
 from spectres import spectres
 from tqdm import tqdm
 from unyt import Hz, angstrom, c, dimensionless, erg, s, yr
+from utils import get_model_filename
 
 from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
@@ -40,7 +45,7 @@ from synthesizer_grids.parser import Parser
 
 def download_data(input_dir, ver, fcov):
     """
-    Function access Yggdrasil spectra from website
+    Function to access Yggdrasil spectra from website
     """
     # Define base path
     filename = f"PopIII{ver}_fcov_{fcov}_SFR_inst_Spectra"
@@ -166,8 +171,9 @@ def make_grid(input_dir, grid_dir, ver, fcov, model, grid_lam):
     """Main function to convert POPIII grids and
     produce grids used by synthesizer"""
 
-    model_name = f"yggdrasil_POPIII_v{ver}_fcov{fcov}"
-    out_filename = f"{grid_dir}/{model_name}.hdf5"
+    # Generate model filename
+    synthesizer_model_name = get_model_filename(model)
+    print(synthesizer_model_name)
 
     # Define input path
     filename = f"PopIII{ver}_fcov_{fcov}_SFR_inst_Spectra"
@@ -193,7 +199,7 @@ def make_grid(input_dir, grid_dir, ver, fcov, model, grid_lam):
     spec *= (lam**2) / light_speed  # now in erg s^-1 Hz^-1 Msol^-1
 
     # Create the grid file
-    out_grid = GridFile(out_filename)
+    out_grid = GridFile(f"{grid_dir}/{synthesizer_model_name}.hdf5")
 
     # A dictionary with Boolean values for each axis, where True
     # indicates that the attribute should be interpolated in
@@ -259,6 +265,11 @@ if __name__ == "__main__":
 
     # Different forms of the IMFs
     vers = np.array([".1", ".2", "_kroupa_IMF"])
+    imf_type = {
+        vers[0]: 'salpeter',
+        vers[1]: 'salpeter',
+        vers[2]: 'kroupa',
+    }
     imf_masses = {
         vers[0]: [50, 500],
         vers[1]: [10, 1, 500],
@@ -275,18 +286,26 @@ if __name__ == "__main__":
     grid_lam = None
 
     for ii, ver in enumerate(vers):
-        model = {
+        for fcov in fcovs:
+            model = {
             "sps_name": sps_name,
             "sps_variant": "PopIII",
+            "sps_version": "1.3.3",
             "imf_masses": imf_masses[ver],
+            "imf_type": imf_type[ver],
             "alpha": False,
-        }
-        for fcov in fcovs:
+            }
+            #Update name to include the covering fraction
+            # if run has nebular data
+            if fcov!="0":
+                model.update({"sps_variant": F"POPIII-fcov_{fcov}"})
+
             # Download the data if necessary
             if args.download:
                 download_data(input_dir, ver, fcov)
 
             # Store the grid_lam wavelength from fcov = "1"
+            # Standardising the wavelength to the nebular grid
             if fcov == "1":
                 lam = convertPOPIII(
                     f"{input_dir}/PopIII{ver}_fcov_{fcov}_SFR_inst_Spectra"
