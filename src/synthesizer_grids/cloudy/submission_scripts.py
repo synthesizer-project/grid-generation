@@ -150,16 +150,14 @@ def artemis(
 
     # create job script
     if from_list is not None:
-        slurm_job_script = (
-            create_slurm_job_script_by_photoionisation_grid_point(
-                list_file=from_list,
-                number_of_jobs=number_of_jobs,
-                partition=partition,
-                new_grid_name=new_grid_name,
-                cloudy_output_dir=cloudy_output_dir,
-                cloudy_executable_path=cloudy_executable_path,
-                memory=memory,
-            )
+        slurm_job_script = create_slurm_job_script_for_list(
+            list_file=from_list,
+            number_of_jobs=number_of_jobs,
+            partition=partition,
+            new_grid_name=new_grid_name,
+            cloudy_output_dir=cloudy_output_dir,
+            cloudy_executable_path=cloudy_executable_path,
+            memory=memory,
         )
 
     else:
