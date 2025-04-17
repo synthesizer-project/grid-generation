@@ -166,7 +166,7 @@ def make_grid(input_dir, grid_dir, ver, fcov, model, grid_lam):
     """Main function to convert POPIII grids and
     produce grids used by synthesizer"""
 
-    model_name = f"yggdrasil_POPIII{ver}"
+    model_name = f"yggdrasil_POPIII_v{ver}_fcov{fcov}"
     out_filename = f"{grid_dir}/{model_name}.hdf5"
 
     # Define input path
