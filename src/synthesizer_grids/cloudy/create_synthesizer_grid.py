@@ -355,8 +355,16 @@ def check_cloudy_runs(
             # Record models that have failed
             if failed:
                 print(incident_index, photoionisation_index)
-                failed_list.append((incident_index, photoionisation_index))
+                failed_list.append([incident_index, photoionisation_index])
 
+    # print("list of failed cloudy runs:", failed_list)
+    print("number of failed cloudy runs:", len(failed_list))
+
+    # Save list of failed runs
+    failed_filename = f"{new_grid_name}.failures"
+    np.savetxt(failed_filename, np.array(failed_list).T)
+
+    # Return failed list (if >0 the code will stop)
     return failed_list
 
 
@@ -852,7 +860,6 @@ if __name__ == "__main__":
         incident_index_list,
         photoionisation_index_list,
     )
-    print("list of failed cloudy runs:", failed_list)
 
     # Save list of failed runs for re-running
 
