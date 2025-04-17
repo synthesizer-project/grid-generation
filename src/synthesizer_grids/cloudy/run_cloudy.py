@@ -10,6 +10,7 @@ or all models (setting neither).
 import argparse
 import os
 
+import numpy as np
 import yaml
 
 if __name__ == "__main__":
@@ -46,6 +47,12 @@ if __name__ == "__main__":
         "--photoionisation-index", type=int, required=False, default=None
     )
 
+    # The filename of a list of incident and photoionisation indices to run.
+    parser.add_argument("--list-file", type=str, required=False, default=None)
+
+    # The index in the list to run.
+    parser.add_argument("--list-index", type=int, required=False, default=None)
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -63,33 +70,70 @@ if __name__ == "__main__":
         f"{parameters['cloudy_version']}/data/:./"
     )
 
-    # Set incident_indices
-    # If an index is provided just use that
-    if args.incident_index is not None:
-        incident_indices = [args.incident_index]
-    # Other wise use a range
-    else:
-        incident_indices = range(parameters["incident_n_models"])
+    # Create arrays of the the incident and photoionisation indices for
+    # the models we want to run
 
-    # Set photoionisation_indices
-    # If an index is provided just use that
-    if args.photoionisation_index is not None:
-        photoionisation_indices = [args.photoionisation_index]
-    # Other wise use a range
-    else:
-        photoionisation_indices = range(parameters["photoionisation_n_models"])
+    # If a list is provided open the file containing the list
+    if args.list_file is not False:
+        incident_indices, photoionisation_indices = np.loadtxt(
+            args.list_file, unpack=True
+        )
 
-    for incident_index in incident_indices:
+        # If an index is also provided just choose this model
+        if args.list_index is not False:
+            incident_indices = [incident_indices[args.list_index]]
+            photoionisation_indices = [
+                photoionisation_indices[args.list_index]
+            ]
+
+    # Otherwise set the list of models to run based on either the number of
+    # grid points or a specific incident and photoionisation index
+    else:
+        # Set incident_indices
+        # If an index is provided just use that
+        if args.incident_index is not None:
+            incident_indices_ = [args.incident_index]
+        # Otherwise use the full range
+        else:
+            incident_indices_ = np.array(
+                range(parameters["incident_n_models"])
+            )
+
+        # Set photoionisation_indices
+        # If an index is provided just use that
+        if args.photoionisation_index is not None:
+            photoionisation_indices_ = [args.photoionisation_index]
+        # Otherwise use the full range
+        else:
+            photoionisation_indices_ = np.array(
+                range(parameters["photoionisation_n_models"])
+            )
+
+        # Convert these into a mesh and flatten so that we have a list of every
+        # incident and photoionisation index.
+        incident_indices, photoionisation_indices = np.meshgrid(
+            incident_indices_, photoionisation_indices_
+        )
+
+        incident_indices = incident_indices.flatten()
+        photoionisation_indices = photoionisation_indices.flatten()
+
+    # Loop over the list of indices and run each one
+    for incident_index, photoionisation_index in zip(
+        incident_indices, photoionisation_indices
+    ):
         # change directory to the output directory
         os.chdir(f"{output_directory}/{incident_index}")
 
         # Loop over each photoionisation model
         for photoionisation_index in photoionisation_indices:
+            # Define the cloudy input file
             input_file = (
                 f"{output_directory}/{incident_index}"
                 f"/{photoionisation_index}.in"
             )
 
+            # Define the cloudy executable path
             cloudy_executable = (
                 f"{args.cloudy_executable_path}/{parameters['cloudy_version']}"
                 "/source/cloudy.exe"
