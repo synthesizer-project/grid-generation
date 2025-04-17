@@ -374,6 +374,8 @@ def check_cloudy_runs(
     # print("list of failed cloudy runs:", failed_list)
     print("number of failed cloudy runs:", len(failed_list))
 
+    print(np.array(failed_list).T)
+
     # Save list of failed runs
     failed_filename = f"{new_grid_name}.failures"
     np.savetxt(failed_filename, np.array(failed_list).T, fmt="%d")
