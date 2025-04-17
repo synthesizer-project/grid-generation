@@ -12,11 +12,11 @@ import os
 import re
 
 import numpy as np
+from synthesizer.emissions import Sed
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
-from synthesizer.emissions import Sed
 from synthesizer.units import has_units
-from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, s, yr
+from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, km, s, yr
 from utils import (
     get_cloudy_params,
     get_grid_props_cloudy,
@@ -39,6 +39,7 @@ axes_units = {
     "alpha_enhancement": dimensionless,
     "abundance_scalings.nitrogen_to_oxygen": dimensionless,
     "abundance_scalings.carbon_to_oxygen": dimensionless,
+    "turbulence": km / s,
 }
 
 log_on_read_dict = {
@@ -58,6 +59,7 @@ pluralisation_of_axes = {
     "z": "redshifts",
     "metallicities": "metallicities",
     "ionisation_parameter": "ionisation_parameters",
+    "turbulence": "turbulences",
     "hydrogen_density": "hydrogen_densities",
     "depletion_scale": "depletion_scales",
     "stop_column_density": "column_densities",
@@ -217,7 +219,7 @@ def create_empty_grid(
             pluralised_axis = pluralisation_of_axes[axis]
             new_axes_for_grid.append(pluralised_axis)
         else:
-            raise ValueError("No pluralisation set for axis")
+            raise ValueError(f"No pluralisation set for {axis} axis")
 
         # If we have units in the grid_params dictionary already then use
         # these, otherwise use the axes_units dictionary, if we don't have
