@@ -16,9 +16,10 @@ import sys
 
 import numpy as np
 import yaml
+from unyt import Angstrom, Hz, Msun, c, dimensionless, erg, s
+
 from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
-from unyt import Angstrom, Hz, Msun, c, dimensionless, erg, s
 
 sys.path.append("RELAGN/src/python_version")
 
@@ -108,6 +109,8 @@ if __name__ == "__main__":
     axes = {}
     for axis_name in axes_names:
         axes[axis_name] = axes_values[axis_name] * axes_units[axis_name]
+
+    axes["masses"].to("Msun")
 
     print(axes_values)
     print(axes)
