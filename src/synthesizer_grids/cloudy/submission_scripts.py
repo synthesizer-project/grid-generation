@@ -101,7 +101,7 @@ python run_cloudy.py \\
     --grid-name={new_grid_name} \\
     --cloudy-output-dir={cloudy_output_dir} \\
     --cloudy-executable-path={cloudy_executable_path} \\
-    --list-file=${list_file} \\
+    --list-file={list_file} \\
     --list-index=${{SLURM_ARRAY_TASK_ID}}
 """
     return slurm_job_script
