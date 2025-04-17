@@ -199,10 +199,9 @@ def make_grid(input_dir, grid_dir, ver, fcov, model, grid_lam):
     # indicates that the attribute should be interpolated in
     # logarithmic space.
     log_on_read = {"ages": True, "metallicities": False}
-    
-    if fcov != "0":
 
-        # Add a suffix to non common nebular model  
+    if fcov != "0":
+        # Add a suffix to non common nebular model
         add = "" if fcov == "1" else f"_fcov_{fcov}"
 
         out_grid.write_grid_common(
@@ -220,7 +219,7 @@ def make_grid(input_dir, grid_dir, ver, fcov, model, grid_lam):
 
     if fcov == "0":
         # incident spectra
-        #grid_lam = out_grid.read_dataset("spectra/wavelength")
+        # grid_lam = out_grid.read_dataset("spectra/wavelength")
         interp_spec = np.zeros((len(ages), len(metallicities), len(grid_lam)))
         for ii, _spec in enumerate(spec):
             interp_spec[ii] = spectres(grid_lam, lam, _spec)
@@ -272,7 +271,7 @@ if __name__ == "__main__":
     # The pure stellar (incident) is resampled and can be done with
     # minimal errors, as it is featureless
     fcovs = np.array(["1", "0.5", "0"])
-    
+
     grid_lam = None
 
     for ii, ver in enumerate(vers):
@@ -286,11 +285,12 @@ if __name__ == "__main__":
             # Download the data if necessary
             if args.download:
                 download_data(input_dir, ver, fcov)
-            
+
             # Store the grid_lam wavelength from fcov = "1"
             if fcov == "1":
-                lam = convertPOPIII(f"{input_dir}/PopIII{ver}_fcov_{fcov}_SFR_inst_Spectra")[3]
-                grid_lam = lam * angstrom  
+                lam = convertPOPIII(
+                    f"{input_dir}/PopIII{ver}_fcov_{fcov}_SFR_inst_Spectra"
+                )[3]
+                grid_lam = lam * angstrom
 
             make_grid(input_dir, grid_dir, ver, fcov, model, grid_lam)
-            
