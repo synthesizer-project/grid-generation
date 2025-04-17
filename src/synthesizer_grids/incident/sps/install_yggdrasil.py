@@ -266,9 +266,9 @@ if __name__ == "__main__":
     # Different forms of the IMFs
     vers = np.array([".1", ".2", "_kroupa_IMF"])
     imf_type = {
-        vers[0]: 'salpeter',
-        vers[1]: 'salpeter',
-        vers[2]: 'kroupa',
+        vers[0]: "salpeter",
+        vers[1]: "salpeter",
+        vers[2]: "kroupa",
     }
     imf_masses = {
         vers[0]: [50, 500],
@@ -288,17 +288,17 @@ if __name__ == "__main__":
     for ii, ver in enumerate(vers):
         for fcov in fcovs:
             model = {
-            "sps_name": sps_name,
-            "sps_variant": "PopIII",
-            "sps_version": "1.3.3",
-            "imf_masses": imf_masses[ver],
-            "imf_type": imf_type[ver],
-            "alpha": False,
+                "sps_name": sps_name,
+                "sps_variant": "PopIII",
+                "sps_version": "1.3.3",
+                "imf_masses": imf_masses[ver],
+                "imf_type": imf_type[ver],
+                "alpha": False,
             }
-            #Update name to include the covering fraction
+            # Update name to include the covering fraction
             # if run has nebular data
-            if fcov!="0":
-                model.update({"sps_variant": F"POPIII-fcov_{fcov}"})
+            if fcov != "0":
+                model.update({"sps_variant": f"POPIII-fcov_{fcov}"})
 
             # Download the data if necessary
             if args.download:
