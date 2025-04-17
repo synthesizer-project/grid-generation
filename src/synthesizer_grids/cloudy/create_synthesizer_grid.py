@@ -900,6 +900,8 @@ if __name__ == "__main__":
         cloudy_dir,
         incident_index_list,
         photoionisation_index_list,
+        machine=machine,
+        cloudy_executable_path=cloudy_executable_path,
     )
 
     # Save list of failed runs for re-running
