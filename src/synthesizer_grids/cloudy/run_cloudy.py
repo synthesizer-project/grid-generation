@@ -76,7 +76,7 @@ if __name__ == "__main__":
     # If a list is provided open the file containing the list
     if args.list_file is not False:
         incident_indices, photoionisation_indices = np.loadtxt(
-            args.list_file, unpack=True
+            args.list_file, unpack=True, dtype=int
         )
 
         # If an index is also provided just choose this model
