@@ -6,17 +6,19 @@ import os
 
 import numpy as np
 from synthesizer.conversions import llam_to_lnu
+from unyt import Angstrom, Hz, dimensionless, erg, s, yr
+from utils import get_model_filename
+
 from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
-from unyt import Angstrom, Hz, dimensionless, erg, s, yr
 
 
 def make_grid(model, imf, input_dir, grid_dir):
     """Main function to convert Maraston 2013 and
     produce grids used by synthesizer
     Args:
-        model (dict):
-            dictionary containing model parameters
+        synthesizer_model_name (string):
+            name of the model to be saved.
         imf (string):
             Initial mass function, Salpeter or
             Kroupa
@@ -24,23 +26,20 @@ def make_grid(model, imf, input_dir, grid_dir):
             directory where the raw Maraston+13 files are read from
         grid_dir (string):
             directory where the grids are created.
-        grid_dir (string):
-            directory where the grids are created.
     Returns:
         fname (string):
             output filename
     """
 
+    synthesizer_model_name = get_model_filename(model)
+    print(synthesizer_model_name)
+
     # define output
-    out_filename = f"{grid_dir}/{sps_name}_{imf}.hdf5"
-    out_filename = f"{grid_dir}/{sps_name}_{imf}.hdf5"
+    out_filename = f"{grid_dir}/{synthesizer_model_name}.hdf5"
 
     metallicities = np.array(
         [0.001, 0.01, 0.02, 0.04]
     )  # array of available metallicities
-
-    if imf == "kroupa100":
-        metallicities = np.array([0.02])
 
     metallicity_codes = {
         0.001: "0001",
@@ -115,12 +114,7 @@ if __name__ == "__main__":
     # Define the model metadata
     sps_name = "maraston13"
     imfs = ["salpeter", "kroupa"]
-    imf_code = {"salpeter": "ss", "kroupa": "kr", "kroupa100": "100kr"}
-    model = {
-        "sps_name": sps_name,
-        "sps_version": False,
-        "alpha": False,
-    }
+    imf_code = {"salpeter": "ss", "kroupa": "kr"}
 
     input_dir = args.input_dir
     input_dir += f"/{sps_name}"
@@ -129,10 +123,16 @@ if __name__ == "__main__":
     if not os.path.exists(input_dir):
         os.mkdir(input_dir)
 
-    # run the single kroupa100 model
-    imf = "kroupa100"
-    make_grid(model, imf, input_dir, grid_dir)
-
     # then run the rest
     for imf in imfs:
+        model = {
+            "sps_name": sps_name,
+            "sps_version": False,
+            "sps_variant": False,
+            "imf_type": imf,
+            "imf_masses": [0.1, 100],
+            "imf_slopes": False,
+            "alpha": False,
+        }
+
         make_grid(model, imf, input_dir, grid_dir)
