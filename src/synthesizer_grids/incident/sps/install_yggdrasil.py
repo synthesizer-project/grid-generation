@@ -225,7 +225,6 @@ def make_grid(input_dir, grid_dir, ver, fcov, model, grid_lam):
 
     if fcov == "0":
         # incident spectra
-        # grid_lam = out_grid.read_dataset("spectra/wavelength")
         interp_spec = np.zeros((len(ages), len(metallicities), len(grid_lam)))
         for ii, _spec in enumerate(spec):
             interp_spec[ii] = spectres(grid_lam, lam, _spec)
