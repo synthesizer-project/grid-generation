@@ -257,7 +257,7 @@ if __name__ == "__main__":
     grid_dir = args.grid_dir
     input_dir = args.input_dir
 
-    sps_name = "Yggdrasil"
+    sps_name = "yggdrasil"
 
     # append sps_name to input_dir to define where to store downloaded input
     # files
