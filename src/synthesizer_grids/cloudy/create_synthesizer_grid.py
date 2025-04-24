@@ -12,11 +12,12 @@ import os
 import re
 
 import numpy as np
+import submission_scripts
+from synthesizer.emissions import Sed
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
-from synthesizer.emissions import Sed
 from synthesizer.units import has_units
-from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, s, yr
+from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, km, s, yr
 from utils import (
     get_cloudy_params,
     get_grid_props_cloudy,
@@ -39,6 +40,7 @@ axes_units = {
     "alpha_enhancement": dimensionless,
     "abundance_scalings.nitrogen_to_oxygen": dimensionless,
     "abundance_scalings.carbon_to_oxygen": dimensionless,
+    "turbulence": km / s,
 }
 
 log_on_read_dict = {
@@ -58,6 +60,7 @@ pluralisation_of_axes = {
     "z": "redshifts",
     "metallicities": "metallicities",
     "ionisation_parameter": "ionisation_parameters",
+    "turbulence": "turbulences",
     "hydrogen_density": "hydrogen_densities",
     "depletion_scale": "depletion_scales",
     "stop_column_density": "column_densities",
@@ -217,7 +220,7 @@ def create_empty_grid(
             pluralised_axis = pluralisation_of_axes[axis]
             new_axes_for_grid.append(pluralised_axis)
         else:
-            raise ValueError("No pluralisation set for axis")
+            raise ValueError(f"No pluralisation set for {axis} axis")
 
         # If we have units in the grid_params dictionary already then use
         # these, otherwise use the axes_units dictionary, if we don't have
@@ -300,6 +303,8 @@ def check_cloudy_runs(
     incident_index_list,
     photoionisation_index_list,
     files_to_check=["emergent_elin"],
+    machine=None,
+    cloudy_executable_path=None,
 ):
     """
     Check that all the cloudy runs have run properly.
@@ -352,10 +357,46 @@ def check_cloudy_runs(
 
             # Record models that have failed
             if failed:
-                print(incident_index, photoionisation_index)
-                failed_list.append((incident_index, photoionisation_index))
+                # The path to the cloudy out file
+                outfile = (
+                    f"{cloudy_dir}/{new_grid_name}/"
+                    f"{incident_index}/{photoionisation_index}.out"
+                )
 
-    return failed_list
+                # Grab the final line of
+                with open(outfile, "r") as file:
+                    lines = file.readlines()
+                    last_line = lines[-1].strip()
+
+                # Print the indices and the last line of the cloudy out ile
+                print(incident_index, photoionisation_index, last_line)
+
+                # Append the incident and photoionisation index to an array
+                failed_list.append([incident_index, photoionisation_index])
+
+    number_of_failed_models = len(failed_list)
+
+    if number_of_failed_models > 0:
+        print("number of failed cloudy runs:", number_of_failed_models)
+
+        # Save list of failed runs
+        failed_filename = f"{new_grid_name}.failures"
+        np.savetxt(failed_filename, np.array(failed_list).T, fmt="%d")
+
+        # If a specific machine is specified run the function in
+        # submission_scripts to generate a submission script.
+        if machine:
+            getattr(submission_scripts, machine)(
+                new_grid_name,
+                number_of_jobs=number_of_failed_models,
+                cloudy_output_dir=cloudy_dir,
+                cloudy_executable_path=cloudy_executable_path,
+                memory="4G",
+                from_list=failed_filename,
+            )
+
+    # Return number_of_failed_models
+    return number_of_failed_models
 
 
 def add_spectra(
@@ -672,6 +713,15 @@ if __name__ == "__main__":
 
     # Add additional parameters which are specific to this script
 
+    # Machine (for submission script generation for failed models)
+    parser.add_argument("--machine", type=str, required=False, default=None)
+
+    # Path to cloudy directory (not the executable; this is assumed to
+    # {cloudy}/{cloudy_version}/source/cloudy.exe)
+    parser.add_argument(
+        "--cloudy-executable-path", type=str, required=False, default=None
+    )
+
     # Should we include the spectra in the grid?
     parser.add_argument(
         "--include-spectra",
@@ -701,7 +751,8 @@ if __name__ == "__main__":
     cloudy_param_file = args.cloudy_paramfile
     extra_cloudy_param_file = args.cloudy_paramfile_extra
     include_spectra = args.include_spectra
-    # line_type = args.line_calc_method
+    machine = args.machine
+    cloudy_executable_path = args.cloudy_executable_path
     verbose = args.verbose
 
     print(" " * 80)
@@ -844,18 +895,19 @@ if __name__ == "__main__":
 
     # Check cloudy runs and potentially replace them by the nearest grid point
     # if they fail.
-    failed_list = check_cloudy_runs(
+    number_of_failed_models = check_cloudy_runs(
         new_grid_name,
         cloudy_dir,
         incident_index_list,
         photoionisation_index_list,
+        machine=machine,
+        cloudy_executable_path=cloudy_executable_path,
     )
-    print("list of failed cloudy runs:", failed_list)
 
     # Save list of failed runs for re-running
 
     # If no runs have failed, go ahead and add spectra and lines.
-    if len(failed_list) == 0:
+    if number_of_failed_models == 0:
         # Add spectra
         if include_spectra:
             lam, spectra = add_spectra(
