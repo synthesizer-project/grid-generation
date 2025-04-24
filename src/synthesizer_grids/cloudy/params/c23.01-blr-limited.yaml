@@ -1,0 +1,44 @@
+# Default config file for BLR models. 
+
+# CLOUDY VERSION
+cloudy_version: c23.01
+
+# ABUNDANCE PATTERN AND DEPLETION
+metallicities: [0.0001, 0.001,0.01]
+reference_abundance: GalacticConcordance # the reference abundance pattern to assume
+alpha_enhancement: 0.0  # alpha element enhancement
+abundance_scalings: 
+  nitrogen: GalacticConcordance
+  carbon: GalacticConcordance
+depletion_model: 
+depletion_scale: 1.0
+
+# GRAINS
+grains: 
+
+# GEOMETRY
+geometry: planeparallel
+
+# IONISATION PARAMETER 
+ionisation_parameter_model: fixed  # which ionisation parameter model to use. `ref` assumes a varying ionisation parameter at a fixed reference age and metallicity
+ionisation_parameter: [0.001, 0.01, 0.1]  # value of ionisation 
+# DENSITY
+hydrogen_density: [1.0e+8, 1.0e+9, 1.0e+10, 1.0e+11, 1.0e+12]  
+
+# STOPPING CRITERIA
+stop_column_density: [21, 22, 23, 24, 25, 26]  # stopping column density
+
+
+# MISC COMMANDS
+CMB:  # include CMB heating
+T_floor: 100  # lower gas temperature floor
+cosmic_rays: true  # flag for inclusion of cosmic ray heating
+# covering_factor: 1.0  #
+turbulence: [10, 20, 50, 100, 200, 500] # turbulence
+z: 0.0  # redshift
+
+# OUTPUT COMMANDS
+resolution: 1.0 # energy resolution relative to the default
+output_cont: true
+output_linelist: linelist-standard.dat
+iterate_to_convergence: true
