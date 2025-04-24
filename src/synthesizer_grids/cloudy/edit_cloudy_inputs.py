@@ -32,17 +32,37 @@ if __name__ == "__main__":
 
     # Add additional parameters which are specific to this script
 
+    # The cloudy output directory
     parser.add_argument(
-        "--cloudy-output-dir", type=str, required=False, default=None
+        "--cloudy-output-dir",
+        type=str,
+        required=False,
+        default=None,
     )
 
-    parser.add_argument("--grid-name", type=str, required=False, default=None)
+    # The full grid name
+    parser.add_argument(
+        "--grid-name",
+        type=str,
+        required=False,
+        default=None,
+    )
 
     # The filename of a list of incident and photoionisation indices to edit.
-    parser.add_argument("--list-file", type=str, required=False, default=None)
+    parser.add_argument(
+        "--list-file",
+        type=str,
+        required=False,
+        default=None,
+    )
 
     # The index in the list to run if only one model is to be changed.
-    parser.add_argument("--list-index", type=int, required=False, default=None)
+    parser.add_argument(
+        "--list-index",
+        type=int,
+        required=False,
+        default=None,
+    )
 
     # The line content (not index) to edit
     parser.add_argument(
@@ -79,6 +99,9 @@ if __name__ == "__main__":
                 photoionisation_indices[args.list_index]
             ]
 
+    print(incident_indices)
+    print(photoionisation_indices)
+
     # Loop over the list of indices and run each one
     for incident_index, photoionisation_index in zip(
         incident_indices, photoionisation_indices
@@ -87,6 +110,8 @@ if __name__ == "__main__":
         filename = (
             f"{output_directory}/{incident_index}/{photoionisation_index}.in"
         )
+
+        print(incident_index, photoionisation_index, filename)
 
         # Edit the file
         edit_line_by_content(filename, args.line_to_edit, args.replacement)
