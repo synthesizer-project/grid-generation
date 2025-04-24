@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
     # Loop over the list of indices and run each one
     for incident_index, photoionisation_index in zip(
-        incident_indices, photoionisation_indices
+        incident_indices[0], photoionisation_indices[0]
     ):
         # The file to edit
         filename = (
