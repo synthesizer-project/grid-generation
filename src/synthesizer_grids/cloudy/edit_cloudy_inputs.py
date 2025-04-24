@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     # Optional replacement, otherwise simply remove
     parser.add_argument(
-        "--line_to_edit",
+        "--replacement",
         type=str,
         required=False,
         default=False,
