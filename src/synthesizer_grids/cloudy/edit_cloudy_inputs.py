@@ -61,7 +61,7 @@ if __name__ == "__main__":
         "--list-index",
         type=int,
         required=False,
-        default=None,
+        default=False,
     )
 
     # The line content (not index) to edit
@@ -99,12 +99,9 @@ if __name__ == "__main__":
                 photoionisation_indices[args.list_index]
             ]
 
-    print(incident_indices)
-    print(photoionisation_indices)
-
     # Loop over the list of indices and run each one
     for incident_index, photoionisation_index in zip(
-        incident_indices[0], photoionisation_indices[0]
+        incident_indices, photoionisation_indices
     ):
         # The file to edit
         filename = (
