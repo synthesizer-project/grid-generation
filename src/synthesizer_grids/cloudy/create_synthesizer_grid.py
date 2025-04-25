@@ -368,11 +368,19 @@ def check_cloudy_runs(
                     lines = file.readlines()
                     last_line = lines[-1].strip()
 
-                # Print the indices and the last line of the cloudy out ile
-                print(incident_index, photoionisation_index, last_line)
-
                 # Append the incident and photoionisation index to an array
                 failed_list.append([incident_index, photoionisation_index])
+
+                # If at least one model fails print a header
+                if len(failed_list) == 1:
+                    print("Failed models:")
+                    print(
+                        "incident_index, photoionisation_index, last line from"
+                        "cloudy"
+                    )
+
+                # Print the indices and the last line of the cloudy out file
+                print(incident_index, photoionisation_index, last_line)
 
     number_of_failed_models = len(failed_list)
 
