@@ -21,37 +21,73 @@ if __name__ == "__main__":
 
     # Add additional parameters which are specific to this script
 
+    # Path to directory where output folders are stored
     parser.add_argument(
-        "--cloudy-output-dir", type=str, required=False, default=None
+        "--cloudy-output-dir",
+        type=str,
+        required=False,
+        default=None,
+        help="The path to the output directory where cloudy runs are stored.",
     )
 
-    parser.add_argument("--grid-name", type=str, required=False, default=None)
+    # The full grid name
+    parser.add_argument(
+        "--grid-name",
+        type=str,
+        required=False,
+        default=None,
+        help="The full grid name.",
+    )
 
     # Path to cloudy directory (not the executable; this is assumed to
     # {cloudy}/{cloudy_version}/source/cloudy.exe)
     parser.add_argument(
-        "--cloudy-executable-path", type=str, required=False, default=None
+        "--cloudy-executable-path",
+        type=str,
+        required=False,
+        default=None,
+        help="Path to cloudy directory.",
     )
 
     # The incident-index. If not set loop over all incident indices. NOTE:
     # this will be slow and should only be used for small grids. In practice
     # this should be argument set by a HPC array job.
     parser.add_argument(
-        "--incident-index", type=int, required=False, default=None
+        "--incident-index",
+        type=int,
+        required=False,
+        default=None,
+        help="Incident grid point index.",
     )
 
     # The photoionisation-index. If not set loop over all
     # photoionisation-indicies indices. By default this should be None so
     # that each call to run_cloudy.py loops over all photoionisation models.
     parser.add_argument(
-        "--photoionisation-index", type=int, required=False, default=None
+        "--photoionisation-index",
+        type=int,
+        required=False,
+        default=None,
+        help="Photoionisation grid point index.",
     )
 
     # The filename of a list of incident and photoionisation indices to run.
-    parser.add_argument("--list-file", type=str, required=False, default=None)
+    parser.add_argument(
+        "--list-file",
+        type=str,
+        required=False,
+        default=None,
+        help="The filename of a list of indices to run.",
+    )
 
     # The index in the list to run.
-    parser.add_argument("--list-index", type=int, required=False, default=None)
+    parser.add_argument(
+        "--list-index",
+        type=int,
+        required=False,
+        default=None,
+        help="The specific entry in the list to run.",
+    )
 
     # Parse arguments
     args = parser.parse_args()
