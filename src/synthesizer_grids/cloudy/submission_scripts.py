@@ -18,23 +18,28 @@ def create_slurm_job_script_by_incident_grid_point(
     cloudy runs is the number of photoionisation grid points.
     """
 
-    slurm_job_script = f"""#!/bin/bash
-#SBATCH --job-name=run_cloudy      # Job name
-#SBATCH --output=output/%A_%a.out  # Standard output log
-#SBATCH --error=output/%A_%a.err   # Error log
-#SBATCH --array=0-{number_of_incident_grid_points-1}  # Job array range
-#SBATCH --ntasks=1                 # Number of tasks per job
-#SBATCH --cpus-per-task=1          # CPU cores per task
-#SBATCH --mem={memory}             # Memory per task
-#SBATCH --partition={partition}    # Partition/queue name
+    number_of_jobs = number_of_incident_grid_points
 
-# Run command
-python run_cloudy.py \\
-    --grid-name={new_grid_name} \\
-    --cloudy-output-dir={cloudy_output_dir} \\
-    --cloudy-executable-path={cloudy_executable_path} \\
-    --incident-index=${{SLURM_ARRAY_TASK_ID}}
-"""
+    slurm_job_script = "\n".join(
+        [
+            "#!/bin/bash",
+            "#SBATCH --job-name=run_cloudy      # Job name",
+            "#SBATCH --output=output/%A_%a.out  # Standard output log",
+            "#SBATCH --error=output/%A_%a.err   # Error log",
+            f"#SBATCH --array=0-{number_of_jobs-1}  # Job array range",
+            "#SBATCH --ntasks=1                 # Number of tasks per job",
+            "#SBATCH --cpus-per-task=1          # CPU cores per task",
+            f"#SBATCH --mem={memory}             # Memory per task",
+            f"#SBATCH --partition={partition}    # Partition/queue name",
+            "",
+            "# Run command",
+            "python run_cloudy.py \\",
+            f"    --grid-name={new_grid_name} \\",
+            f"    --cloudy-output-dir={cloudy_output_dir} \\",
+            f"    --cloudy-executable-path={cloudy_executable_path} \\",
+            "    --incident-index=${SLURM_ARRAY_TASK_ID}",
+        ]
+    )
     return slurm_job_script
 
 
@@ -53,23 +58,28 @@ def create_slurm_job_script_by_photoionisation_grid_point(
     the number of cloudy runs per jobs is the number of incident grid points.
     """
 
-    slurm_job_script = f"""#!/bin/bash
-#SBATCH --job-name=run_cloudy      # Job name
-#SBATCH --output=output/%A_%a.out  # Standard output log
-#SBATCH --error=output/%A_%a.err   # Error log
-#SBATCH --array=0-{number_of_photoionisation_models-1}  # Job array range
-#SBATCH --ntasks=1                 # Number of tasks per job
-#SBATCH --cpus-per-task=1          # CPU cores per task
-#SBATCH --mem={memory}             # Memory per task
-#SBATCH --partition={partition}    # Partition/queue name
+    number_of_jobs = number_of_photoionisation_models
 
-# Run command
-python run_cloudy.py \\
-    --grid-name={new_grid_name} \\
-    --cloudy-output-dir={cloudy_output_dir} \\
-    --cloudy-executable-path={cloudy_executable_path} \\
-    --photoionisation-index=${{SLURM_ARRAY_TASK_ID}}
-"""
+    slurm_job_script = "\n".join(
+        [
+            "#!/bin/bash",
+            "#SBATCH --job-name=run_cloudy      # Job name",
+            "#SBATCH --output=output/%A_%a.out  # Standard output log",
+            "#SBATCH --error=output/%A_%a.err   # Error log",
+            f"#SBATCH --array=0-{number_of_jobs-1} # Job array range",
+            "#SBATCH --ntasks=1                 # Number of tasks per job",
+            "#SBATCH --cpus-per-task=1          # CPU cores per task",
+            f"#SBATCH --mem={memory}             # Memory per task",
+            f"#SBATCH --partition={partition}    # Partition/queue name",
+            "",
+            "# Run command",
+            "python run_cloudy.py \\",
+            f"    --grid-name={new_grid_name} \\",
+            f"    --cloudy-output-dir={cloudy_output_dir} \\",
+            f"    --cloudy-executable-path={cloudy_executable_path} \\",
+            "    --photoionisation-index=${SLURM_ARRAY_TASK_ID}",
+        ]
+    )
     return slurm_job_script
 
 
@@ -86,24 +96,27 @@ def create_slurm_job_script_for_list(
     Create a generic slurm input script where we use a list of models.
     """
 
-    slurm_job_script = f"""#!/bin/bash
-#SBATCH --job-name=run_cloudy      # Job name
-#SBATCH --output=output/%A_%a.out  # Standard output log
-#SBATCH --error=output/%A_%a.err   # Error log
-#SBATCH --array=0-{number_of_jobs-1}  # Job array range
-#SBATCH --ntasks=1                 # Number of tasks per job
-#SBATCH --cpus-per-task=1          # CPU cores per task
-#SBATCH --mem={memory}             # Memory per task
-#SBATCH --partition={partition}    # Partition/queue name
-
-# Run command
-python run_cloudy.py \\
-    --grid-name={new_grid_name} \\
-    --cloudy-output-dir={cloudy_output_dir} \\
-    --cloudy-executable-path={cloudy_executable_path} \\
-    --list-file={list_file} \\
-    --list-index=${{SLURM_ARRAY_TASK_ID}}
-"""
+    slurm_job_script = "\n".join(
+        [
+            "#!/bin/bash",
+            "#SBATCH --job-name=run_cloudy      # Job name",
+            "#SBATCH --output=output/%A_%a.out  # Standard output log",
+            "#SBATCH --error=output/%A_%a.err   # Error log",
+            f"#SBATCH --array=0-{number_of_jobs-1}  # Job array range",
+            "#SBATCH --ntasks=1                 # Number of tasks per job",
+            "#SBATCH --cpus-per-task=1          # CPU cores per task",
+            f"#SBATCH --mem={memory}             # Memory per task",
+            f"#SBATCH --partition={partition}    # Partition/queue name",
+            "",
+            "# Run command",
+            "python run_cloudy.py \\",
+            f"    --grid-name={new_grid_name} \\",
+            f"    --cloudy-output-dir={cloudy_output_dir} \\",
+            f"    --cloudy-executable-path={cloudy_executable_path} \\",
+            f"    --list-file={list_file} \\",
+            "    --list-index=${SLURM_ARRAY_TASK_ID}",
+        ]
+    )
     return slurm_job_script
 
 
