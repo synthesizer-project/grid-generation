@@ -297,12 +297,43 @@ def get_grid_properties_hf(hf, verbose=True):
     return axes, *get_grid_props_cloudy(axes, axes_values, verbose=verbose)
 
 
+def check_if_failed(
+    model_to_check,
+    extensions_to_check=["emergent_elin"],
+):
+    """
+    Function to check if a particular model has failed.
+
+    Args:
+        model_to_check (str)
+            The model, including path, to check.
+        extensions_to_check (list)
+            List of file extensions to check to check for each model.
+
+    """
+
+    failed = False
+
+    # Check if files exist
+    for ext in extensions_to_check:
+        if not os.path.isfile(model_to_check + "." + ext):
+            failed = True
+
+    # If they exist also check they have size >0
+    if not failed:
+        for ext in extensions_to_check:
+            if os.path.getsize(model_to_check + "." + ext) < 100:
+                failed = True
+
+    return failed
+
+
 def check_cloudy_runs(
     new_grid_name,
     cloudy_dir,
     incident_index_list,
     photoionisation_index_list,
-    files_to_check=["emergent_elin"],
+    extensions_to_check=["emergent_elin"],
     machine=None,
     cloudy_executable_path=None,
 ):
@@ -321,7 +352,7 @@ def check_cloudy_runs(
             List of photoionisation grid points
         replace (boolean)
             If a run has failed simply replace the model with the previous one.
-        files_to_check (list)
+        extensions_to_check (list)
             List of files to check for each model.
 
     Returns:
@@ -336,24 +367,17 @@ def check_cloudy_runs(
         for photoionisation_index, photoionisation_index_tuple in enumerate(
             photoionisation_index_list
         ):
-            # The infile
-            infile = (
+            # The model to check, including the full path
+            model_to_check = (
                 f"{cloudy_dir}/{new_grid_name}/"
                 f"{incident_index}/{photoionisation_index}"
             )
 
-            failed = False
-
-            # Check if files exist
-            for ext in files_to_check:
-                if not os.path.isfile(infile + "." + ext):
-                    failed = True
-
-            # If they exist also check they have size >0
-            if not failed:
-                for ext in files_to_check:
-                    if os.path.getsize(infile + "." + ext) < 100:
-                        failed = True
+            # Check if it failed
+            failed = check_if_failed(
+                model_to_check,
+                extensions_to_check=extensions_to_check,
+            )
 
             # Record models that have failed
             if failed:
@@ -475,6 +499,9 @@ def add_spectra(
     # used by lines
     spectra["normalisation"] = np.ones(new_shape)
 
+    # Array for recording cloudy failures
+    spectra["failures"] = np.zeros((*new_shape, nlam))
+
     for incident_index, incident_index_tuple in enumerate(incident_index_list):
         for photoionisation_index, photoionisation_index_tuple in enumerate(
             photoionisation_index_list
@@ -490,39 +517,54 @@ def add_spectra(
                 f"{incident_index}/{photoionisation_index}"
             )
 
-            # Read the continuum file containing the spectra
-            spec_dict = cloudy.read_continuum(infile, return_dict=True)
+            # Check to see if the model failed or not, using the default
+            # extensions
+            failed = check_if_failed(infile)
 
-            # Calculate the specific ionising photon luminosity and use this to
-            # renormalise the spectrum.
-            if norm_by_q:
-                # Create sed object
-                sed = Sed(
-                    lam=lam * Angstrom,
-                    lnu=spec_dict["incident"] * erg / s / Hz,
-                )
+            # If the model has failed save the spectra as an array of zeros
+            if failed:
+                # Set all the spectra to zero but with the correct shape
+                for spec_name in spec_names:
+                    spectra[spec_name][indices] = np.zeros(nlam)
 
-                # Calculate Q
-                ionising_photon_production_rate = (
-                    sed.calculate_ionising_photon_production_rate(
-                        ionisation_energy=13.6 * eV, limit=100
+                # Record failures in array
+                spectra["failures"][indices] = 1
+
+            else:
+                # Read the continuum file containing the spectra
+                spec_dict = cloudy.read_continuum(infile, return_dict=True)
+
+                # Calculate the specific ionising photon luminosity and use
+                # this to renormalise the spectrum.
+                if norm_by_q:
+                    # Create sed object
+                    sed = Sed(
+                        lam=lam * Angstrom,
+                        lnu=spec_dict["incident"] * erg / s / Hz,
                     )
-                )
 
-                # Calculate normalisation
-                normalisation = new_grid.read_dataset(
-                    "log10_specific_ionising_luminosity/HI",
-                    indices=indices,
-                ) - np.log10(ionising_photon_production_rate)
+                    # Calculate Q
+                    ionising_photon_production_rate = (
+                        sed.calculate_ionising_photon_production_rate(
+                            ionisation_energy=13.6 * eV, limit=100
+                        )
+                    )
 
-                # Save normalisation for later use (rescaling lines)
-                spectra["normalisation"][indices] = 10**normalisation
+                    # Calculate normalisation
+                    normalisation = new_grid.read_dataset(
+                        "log10_specific_ionising_luminosity/HI",
+                        indices=indices,
+                    ) - np.log10(ionising_photon_production_rate)
 
-            # Save the normalised spectrum to the correct grid point
-            for spec_name in spec_names:
-                spectra[spec_name][indices] = (
-                    spec_dict[spec_name] * spectra["normalisation"][indices]
-                )
+                    # Save normalisation for later use (rescaling lines)
+                    spectra["normalisation"][indices] = 10**normalisation
+
+                # Save the normalised spectrum to the correct grid point
+                for spec_name in spec_names:
+                    spectra[spec_name][indices] = (
+                        spec_dict[spec_name]
+                        * spectra["normalisation"][indices]
+                    )
 
     # Apply units to the spectra
     for spec in spectra:
@@ -533,6 +575,8 @@ def add_spectra(
         spectra,
         wavelength=lam * Angstrom,
     )
+
+    # Need to write the dataset containing the failures
 
     return lam, spectra
 
@@ -610,6 +654,9 @@ def add_lines(
     # We always save luminosity...
     lines["luminosity"] = np.empty((*new_shape, nlines))
 
+    # And whether a model failed or not
+    lines["failures"] = np.empty((*new_shape, nlines))
+
     # ... but only save continuum values if spectra are provided.
     if calculate_continuum:
         continuum_quantities = [
@@ -654,46 +701,65 @@ def add_lines(
                 f"{incident_index}/{photoionisation_index}"
             )
 
-            # Read line quantities
-            ids, line_wavelengths, luminosities = cloudy.read_linelist(
-                infile, extension="emergent_elin"
-            )
+            # Check to see if the model failed or not, using the default
+            # extensions
+            failed = check_if_failed(infile)
 
-            # re-order by wavelength
-            sorted_indices = np.argsort(line_wavelengths)
-            ids = ids[sorted_indices]
-            luminosities = luminosities[sorted_indices]
-            line_wavelengths = line_wavelengths[sorted_indices]
+            # If the model has failed save the luminosities as an array of
+            # zeros
+            if failed:
+                # Set the line luminosities to zero
+                lines["luminosity"][indices] = np.zeros(nlines)
 
-            # If we're on the first grid point save the wavelength grid
-            if (incident_index == 0) and (photoionisation_index == 0):
-                lines["wavelength"] = line_wavelengths
-                # for id, lam in zip(ids, sorted_indices):
-                #     print(id, lam)
+                # Set the continuum luminosities to zero
+                if calculate_continuum:
+                    for continuum_quantity in continuum_quantities:
+                        lines[continuum_quantity][indices] = np.zeros(nlines)
 
-                # Record list of IDs
-                lines["id"] = ids
+                # Record failures in array
+                lines["failures"][indices] = 1
 
-            # If spectra have been calculated extract the normalisation ..
-            if calculate_continuum:
-                normalisation = spectra["normalisation"][indices]
-
-            # Otherwise set the normalisation to unity
             else:
-                normalisation = 1.0
+                # Read line quantities
+                ids, line_wavelengths, luminosities = cloudy.read_linelist(
+                    infile, extension="emergent_elin"
+                )
 
-            # Calculate line luminosity and save it. Uses normalisation
-            # from spectra. Units are erg/s
-            lines["luminosity"][indices] = luminosities * normalisation
+                # re-order by wavelength
+                sorted_indices = np.argsort(line_wavelengths)
+                ids = ids[sorted_indices]
+                luminosities = luminosities[sorted_indices]
+                line_wavelengths = line_wavelengths[sorted_indices]
 
-            # Calculate continuum luminosities. Units are erg/s/Hz.
-            if calculate_continuum:
-                for continuum_quantity in continuum_quantities:
-                    lines[continuum_quantity][indices] = np.interp(
-                        line_wavelengths,
-                        lam,
-                        spectra_[continuum_quantity][indices],
-                    )
+                # If we're on the first grid point save the wavelength grid
+                if (incident_index == 0) and (photoionisation_index == 0):
+                    lines["wavelength"] = line_wavelengths
+                    # for id, lam in zip(ids, sorted_indices):
+                    #     print(id, lam)
+
+                    # Record list of IDs
+                    lines["id"] = ids
+
+                # If spectra have been calculated extract the normalisation ..
+                if calculate_continuum:
+                    normalisation = spectra["normalisation"][indices]
+
+                # Otherwise set the normalisation to unity
+                else:
+                    normalisation = 1.0
+
+                # Calculate line luminosity and save it. Uses normalisation
+                # from spectra. Units are erg/s
+                lines["luminosity"][indices] = luminosities * normalisation
+
+                # Calculate continuum luminosities. Units are erg/s/Hz.
+                if calculate_continuum:
+                    for continuum_quantity in continuum_quantities:
+                        lines[continuum_quantity][indices] = np.interp(
+                            line_wavelengths,
+                            lam,
+                            spectra_[continuum_quantity][indices],
+                        )
 
     # Apply units to the wavelength
     lines["wavelength"] *= Angstrom
@@ -912,38 +978,38 @@ if __name__ == "__main__":
         cloudy_executable_path=cloudy_executable_path,
     )
 
-    # Save list of failed runs for re-running
+    # Even if a grid point has failed the code will now still create a grid,
+    # recording failures with zeros in the spectra and line quantities. The
+    # code will also save an array of failure flags.
 
-    # If no runs have failed, go ahead and add spectra and lines.
-    if number_of_failed_models == 0:
-        # Add spectra
-        if include_spectra:
-            lam, spectra = add_spectra(
-                new_grid,
-                new_grid_name,
-                cloudy_dir,
-                incident_index_list,
-                photoionisation_index_list,
-                new_shape,
-                spec_names=("incident", "transmitted", "nebular", "linecont"),
-                norm_by_q=True,
-            )
-            print("Added spectra")
-            print(spectra.keys())
-        else:
-            lam = None
-            spectra = None
-
-        # Add lines
-        add_lines(
+    # Now add spectra
+    if include_spectra:
+        lam, spectra = add_spectra(
             new_grid,
             new_grid_name,
             cloudy_dir,
             incident_index_list,
             photoionisation_index_list,
             new_shape,
-            lam,
-            spectra,
-            line_type="linelist",
+            spec_names=("incident", "transmitted", "nebular", "linecont"),
+            norm_by_q=True,
         )
-        print("Added lines")
+        print("Added spectra")
+        print(spectra.keys())
+    else:
+        lam = None
+        spectra = None
+
+    # Now add lines
+    add_lines(
+        new_grid,
+        new_grid_name,
+        cloudy_dir,
+        incident_index_list,
+        photoionisation_index_list,
+        new_shape,
+        lam,
+        spectra,
+        line_type="linelist",
+    )
+    print("Added lines")
