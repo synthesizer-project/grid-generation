@@ -1000,6 +1000,8 @@ if __name__ == "__main__":
         lam = None
         spectra = None
 
+    print(spectra)
+
     # Now add lines
     add_lines(
         new_grid,
