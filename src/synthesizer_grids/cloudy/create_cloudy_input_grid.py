@@ -10,7 +10,6 @@ import shutil
 from pathlib import Path
 
 import numpy as np
-import submission_scripts
 import yaml
 from synthesizer.abundances import (
     Abundances,
@@ -18,11 +17,12 @@ from synthesizer.abundances import (
 from synthesizer.exceptions import InconsistentParameter
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
-from utils import (
+
+import synthesizer_grids.cloudy.submission_scripts as submission_scripts
+from synthesizer_grids.cloudy.utils import (
     get_cloudy_params,
     get_grid_props_cloudy,
 )
-
 from synthesizer_grids.parser import Parser
 
 
