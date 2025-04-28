@@ -500,7 +500,7 @@ def add_spectra(
     spectra["normalisation"] = np.ones(new_shape)
 
     # Array for recording cloudy failures
-    spectra["failures"] = np.zeros((*new_shape, nlam))
+    failures = np.zeros((*new_shape, nlam))
 
     for incident_index, incident_index_tuple in enumerate(incident_index_list):
         for photoionisation_index, photoionisation_index_tuple in enumerate(
@@ -528,7 +528,7 @@ def add_spectra(
                     spectra[spec_name][indices] = np.zeros(nlam)
 
                 # Record failures in array
-                spectra["failures"][indices] = 1
+                failures[indices] = 1
 
             else:
                 # Read the continuum file containing the spectra
@@ -577,6 +577,13 @@ def add_spectra(
     )
 
     # Need to write the dataset containing the failures
+    new_grid.write_dataset(
+        "failures",
+        failures * dimensionless,
+        "array of model failures",
+        False,
+        verbose=False,
+    )
 
     return lam, spectra
 
@@ -653,9 +660,6 @@ def add_lines(
 
     # We always save luminosity...
     lines["luminosity"] = np.empty((*new_shape, nlines))
-
-    # And whether a model failed or not
-    # lines["failures"] = np.zeros((*new_shape, nlines)) * dimensionless
 
     # ... but only save continuum values if spectra are provided.
     if calculate_continuum:
