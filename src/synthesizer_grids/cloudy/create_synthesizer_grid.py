@@ -655,7 +655,7 @@ def add_lines(
     lines["luminosity"] = np.empty((*new_shape, nlines))
 
     # And whether a model failed or not
-    lines["failures"] = np.empty((*new_shape, nlines))
+    lines["failures"] = np.zeros((*new_shape, nlines))
 
     # ... but only save continuum values if spectra are provided.
     if calculate_continuum:
@@ -999,8 +999,6 @@ if __name__ == "__main__":
     else:
         lam = None
         spectra = None
-
-    print(spectra)
 
     # Now add lines
     add_lines(
