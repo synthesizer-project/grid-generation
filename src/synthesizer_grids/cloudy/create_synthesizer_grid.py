@@ -655,7 +655,7 @@ def add_lines(
     lines["luminosity"] = np.empty((*new_shape, nlines))
 
     # And whether a model failed or not
-    lines["failures"] = np.zeros((*new_shape, nlines))
+    # lines["failures"] = np.zeros((*new_shape, nlines)) * dimensionless
 
     # ... but only save continuum values if spectra are provided.
     if calculate_continuum:
@@ -717,7 +717,7 @@ def add_lines(
                         lines[continuum_quantity][indices] = np.zeros(nlines)
 
                 # Record failures in array
-                lines["failures"][indices] = 1
+                # lines["failures"][indices] = 1
 
             else:
                 # Read line quantities
