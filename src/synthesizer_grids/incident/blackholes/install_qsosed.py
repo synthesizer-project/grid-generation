@@ -25,7 +25,7 @@ sys.path.append("RELAGN/src/python_version")
 
 if __name__ == "__main__":
     # Import relagn module
-    from relagn import relagn  # noqa: E402
+    from relagn import relagn, relqso  # noqa: E402
 
     """
     Create incident AGN spectra assuming the QSOSED model.
@@ -130,7 +130,7 @@ if __name__ == "__main__":
         ):
             if isotropic:
                 # spin is assumed to be zero here
-                dagn = relagn(
+                dagn = relqso(
                     a=0.0,
                     cos_inc=cosine_inclination,
                     log_mdot=np.log10(accretion_rate_eddington_),
@@ -147,7 +147,7 @@ if __name__ == "__main__":
                     axes_values["cosine_inclinations"]
                 ):
                     # spin is assumed to be zero here
-                    dagn = relagn(
+                    dagn = relqso(
                         a=0.0,
                         cos_inc=cosine_inclination_,
                         log_mdot=np.log10(accretion_rate_eddington_),
