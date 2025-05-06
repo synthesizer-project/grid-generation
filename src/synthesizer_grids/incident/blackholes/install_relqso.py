@@ -16,15 +16,16 @@ import sys
 
 import numpy as np
 import yaml
+from unyt import Angstrom, Hz, Msun, dimensionless, erg, s
+
 from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
-from unyt import Angstrom, Hz, Msun, dimensionless, erg, s
 
 sys.path.append("RELAGN/src/python_version")
 
 if __name__ == "__main__":
     # Import relagn module
-    from relagn import relagn  # noqa: E402
+    from relagn import relagn, relqso  # noqa: E402
 
     """
     Create incident AGN spectra assuming the RELQSO model.
@@ -134,7 +135,7 @@ if __name__ == "__main__":
         ):
             for i3, spin_ in enumerate(axes_values["spins"]):
                 if isotropic:
-                    dagn = relagn(
+                    dagn = relqso(
                         a=spin_,
                         cos_inc=cosine_inclination,
                         log_mdot=np.log10(accretion_rate_eddington_),
@@ -152,7 +153,7 @@ if __name__ == "__main__":
                     for i4, cosine_inclination_ in enumerate(
                         axes_values["cosine_inclinations"]
                     ):
-                        dagn = relagn(
+                        dagn = relqso(
                             a=spin_,
                             cos_inc=cosine_inclination_,
                             log_mdot=np.log10(accretion_rate_eddington_),
