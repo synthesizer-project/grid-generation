@@ -153,9 +153,10 @@ def check_run(
     # Accounting array
     outcome_array = np.zeros(len(run_key))
 
-    print(f"\nReading model outcomes for all models in {args.cloudy_dir}")
-
+    # Variable to run through all models
     ii = 0
+    
+    print(f"\nReading model outcomes for all models in {args.cloudy_dir}")
 
     for incident_index in tqdm(range(incident_n_models)):
         for photoionisation_index in range(photoionisation_n_models):
