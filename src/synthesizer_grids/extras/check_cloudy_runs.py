@@ -53,7 +53,7 @@ def read_model_output_tail(
             tail = None
         else:
             sys.exit(
-                F"File {folder_loc}/{model_num} does not exist!"
+                f"File {folder_loc}/{model_num} does not exist!"
                 "You might be looking in the wrong folder!"
             )
 
@@ -94,7 +94,7 @@ def check_run(
     ) = get_grid_props_cloudy(
         variable_photoionisation_params.keys(),
         variable_photoionisation_params,
-        verbose=args.verbose
+        verbose=args.verbose,
     )
 
     # Open the incident grid
@@ -103,7 +103,7 @@ def check_run(
         grid_dir=f"{args.grid_dir}",
         read_lines=False,
     )
-     # Extract axes and axes values from the Grid
+    # Extract axes and axes values from the Grid
     incident_axes = incident_grid.axes
     incident_axes_values = incident_grid._axes_values
 
@@ -116,13 +116,11 @@ def check_run(
         incident_model_list,
         incident_index_list,
     ) = get_grid_props_cloudy(
-        incident_axes,
-        incident_axes_values,
-        verbose=args.verbose
+        incident_axes, incident_axes_values, verbose=args.verbose
     )
 
-    #Set up the total model list including both the
-    #the incident and photionisation parameters
+    # Set up the total model list including both the
+    # the incident and photionisation parameters
     all_model_params = incident_axes_values | variable_photoionisation_params
     lengths = [len(value) for value in all_model_params.values()]
     total_models = np.prod(lengths)
@@ -130,15 +128,13 @@ def check_run(
 
     # Fill array with the incident models
     arr = np.repeat(
-        incident_model_list,
-        repeats=photoionisation_n_models,
-        axis=0
+        incident_model_list, repeats=photoionisation_n_models, axis=0
     )
-    all_model_list[:,:incident_n_axes] = arr
+    all_model_list[:, :incident_n_axes] = arr
 
     # Fill array with the photoionisation models
     arr = np.tile(photoionisation_model_list, (incident_n_models, 1))
-    all_model_list[:,incident_n_axes:] = arr
+    all_model_list[:, incident_n_axes:] = arr
 
     # Define dictionary to store summary statistics
     run_space = np.zeros(total_models, dtype=int)
@@ -159,15 +155,14 @@ def check_run(
 
     print(f"\nReading model outcomes for all models in {args.cloudy_dir}")
 
-    ii=0
+    ii = 0
 
     for incident_index in tqdm(range(incident_n_models)):
         for photoionisation_index in range(photoionisation_n_models):
-
             # Get the tail of the cloudy output file
             tail = read_model_output_tail(
                 model_num=photoionisation_index,
-                folder_loc=F"{args.cloudy_dir}/{incident_index}/"
+                folder_loc=f"{args.cloudy_dir}/{incident_index}/",
             )
 
             if "Cloudy exited OK" in tail:
@@ -175,9 +170,11 @@ def check_run(
             elif tail is None:
                 run_space[ii] = 1
                 outcome_array[1] += 1
-            elif ("unphysical" in tail or
-                "negative population" in tail or
-                "start" in tail):
+            elif (
+                "unphysical" in tail
+                or "negative population" in tail
+                or "start" in tail
+            ):
                 run_space[ii] = 2
                 outcome_array[2] += 1
             elif "did not converge" in tail:
@@ -196,7 +193,7 @@ def check_run(
                 run_space[ii] = 7
                 outcome_array[7] += 1
 
-            ii+=1
+            ii += 1
 
     print(f"\n{total_models} models in total in this sample")
     print("Breakdown of the EXIT codes:\n")
@@ -263,7 +260,6 @@ def plot_run_space(
             matplotlib colourmap to use
     """
 
-
     # How many parameters
     N = len(parameters.keys())
 
@@ -281,7 +277,7 @@ def plot_run_space(
                 np.min(np.log10(value)) - 0.2,
                 np.max(np.log10(value)) + 0.2,
             ]
-        if param_unit[key]=='None':
+        if param_unit[key] == "None":
             p_labels[key] = f"{key}"
         else:
             p_labels[key] = f"{key}/{param_unit[key]}"
@@ -308,7 +304,6 @@ def plot_run_space(
 
     for ii, key_ii in enumerate(parameters.keys()):
         for jj, key_jj in enumerate(parameters.keys()):
-
             if param_logged[key_jj]:
                 x = model_list[:, jj]
             else:
@@ -391,10 +386,10 @@ def plot_run_space(
             # Plotting the failed runs in the lower triangle
             elif jj < ii:
                 ax_array[ii, jj].scatter(
-                    x=x[~success]+0.01*run_space[~success],
-                    y=y[~success]+0.01*run_space[~success],
+                    x=x[~success] + 0.01 * run_space[~success],
+                    y=y[~success] + 0.01 * run_space[~success],
                     c=run_space[~success],
-                    s=10*(run_space[~success]+1),
+                    s=10 * (run_space[~success] + 1),
                     alpha=0.2,
                     edgecolors="None",
                     cmap=c_m,
@@ -475,7 +470,6 @@ if __name__ == "__main__":
         "for success/falure"
     )
 
-
     # The name of the incident grid
     parser.add_argument("--incident_grid", type=str, required=True)
 
@@ -485,14 +479,11 @@ if __name__ == "__main__":
     # The cloudy parameters, including any grid axes
     # This is the parameter file within the cloudy
     # run directory
-    parser.add_argument(
-        "--cloudy_paramfile", type=str, required=True
-    )
+    parser.add_argument("--cloudy_paramfile", type=str, required=True)
 
     parser.add_argument(
         "--extra_cloudy_paramfile", type=str, required=False, default=None
     )
-
 
     # Parse arguments
     args = parser.parse_args()
@@ -510,9 +501,8 @@ if __name__ == "__main__":
     )
 
     # Load the cloudy parameters you are going to run
-    fixed_photoionisation_params,\
-        variable_photoionisation_params = get_cloudy_params(
-        args.cloudy_paramfile, param_dir=args.cloudy_dir
+    fixed_photoionisation_params, variable_photoionisation_params = (
+        get_cloudy_params(args.cloudy_paramfile, param_dir=args.cloudy_dir)
     )
 
     # If an additional parameter set is provided supersede the default
@@ -523,7 +513,6 @@ if __name__ == "__main__":
         )
         fixed_photoionisation_params |= fixed_photoionisation_params_
         variable_photoionisation_params |= variable_photoionisation_params_
-
 
     if verbose:
         print("axes:", variable_photoionisation_params)
@@ -564,8 +553,9 @@ if __name__ == "__main__":
             fixed_photoionisation_params["reference_" + k + "_index"] = i
 
     # Combine all the varying parameters
-    all_model_params = (incident_grid._axes_values |
-                        variable_photoionisation_params)
+    all_model_params = (
+        incident_grid._axes_values | variable_photoionisation_params
+    )
 
     all_model_params_unit = {}
     all_model_params_logged = {}
@@ -583,7 +573,7 @@ if __name__ == "__main__":
             all_model_params_unit[key] = "km/s"
             all_model_params_logged[key] = False
         else:
-            all_model_params_unit[key] = 'None'
+            all_model_params_unit[key] = "None"
             all_model_params_logged[key] = False
 
     check_run(
@@ -591,5 +581,5 @@ if __name__ == "__main__":
         variable_photoionisation_params,
         all_model_params_unit,
         all_model_params_logged,
-        colourmap=cmr.tropical
+        colourmap=cmr.tropical,
     )
