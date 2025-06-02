@@ -155,7 +155,7 @@ def check_run(
 
     # Variable to run through all models
     ii = 0
-    
+
     print(f"\nReading model outcomes for all models in {args.cloudy_dir}")
 
     for incident_index in tqdm(range(incident_n_models)):
@@ -204,7 +204,7 @@ def check_run(
 
     if outcome_array[0] != total_models:
         print(
-            f"{int(total_models-outcome_array[0])} runs were not successful\n"
+            f"{int(total_models - outcome_array[0])} runs were not successful"
         )
         print(
             f"Saving to run dictionary to {args.cloudy_dir}/"
