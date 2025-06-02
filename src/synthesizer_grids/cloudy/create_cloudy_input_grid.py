@@ -315,6 +315,11 @@ if __name__ == "__main__":
     with open(f"{output_directory}/grid_parameters.yaml", "w") as file:
         yaml.dump(parameters_to_save, file, default_flow_style=False)
 
+    # Also save the cloudy parameter file to the output folder
+    shutil.copy(cloudy_paramfile, f"{output_directory}/")
+    if extra_cloudy_paramfile is not None:
+        shutil.copy(extra_cloudy_paramfile, f"{output_directory}/")
+
     # If the ionisation_parameter_model is the reference model (i.e. not fixed)
     # save the value of the ionising photon luminosity at the reference grid
     # point.
