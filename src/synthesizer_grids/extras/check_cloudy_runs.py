@@ -105,7 +105,7 @@ def check_run(
     )
     # Extract axes and axes values from the Grid
     incident_axes = incident_grid.axes
-    incident_axes_values = incident_grid._axes_values
+    incident_axes_values = incident_grid.axes_values
 
     # Get properties of the incident grid
     (
@@ -555,7 +555,7 @@ if __name__ == "__main__":
 
     # Combine all the varying parameters
     all_model_params = (
-        incident_grid._axes_values | variable_photoionisation_params
+        incident_grid.axes_values | variable_photoionisation_params
     )
 
     all_model_params_unit = {}
