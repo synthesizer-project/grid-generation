@@ -18,8 +18,9 @@ import argparse
 
 import numpy as np
 from synthesizer.grid import Grid
-from synthesizer_grids.grid_io import GridFile
 from unyt import Hz, erg, s, yr
+
+from synthesizer_grids.grid_io import GridFile
 
 
 def reduce_grid(original_grid, **axes):
