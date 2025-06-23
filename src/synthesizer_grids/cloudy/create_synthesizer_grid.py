@@ -500,7 +500,7 @@ def add_spectra(
     spectra["normalisation"] = np.ones(new_shape)
 
     # Array for recording cloudy failures
-    failures = np.zeros(*new_shape)
+    failures = np.zeros(new_shape)
 
     for incident_index, incident_index_tuple in enumerate(incident_index_list):
         for photoionisation_index, photoionisation_index_tuple in enumerate(
@@ -690,7 +690,7 @@ def add_lines(
             lines[continuum_quantity] = np.empty((*new_shape, nlines))
 
     # Array for recording cloudy failures
-    failures = np.zeros(*new_shape)
+    failures = np.zeros(new_shape)
 
     # Loop over incident models and photoionisation models
     for incident_index, incident_index_tuple in enumerate(incident_index_list):
