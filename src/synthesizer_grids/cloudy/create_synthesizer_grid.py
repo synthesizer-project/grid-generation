@@ -786,13 +786,16 @@ def add_lines(
 
     # Need to write the dataset containing the failures
     # This is repeated if spectra were made.
-    new_grid.write_dataset(
-        "failures",
-        failures * dimensionless,
-        "array of model failures",
-        False,
-        verbose=False,
-    )
+    if spectra is not None:
+        print("Dataset of failed models already written out!")
+    else:
+        new_grid.write_dataset(
+            "failures",
+            failures * dimensionless,
+            "array of model failures",
+            False,
+            verbose=False,
+        )
 
 
 if __name__ == "__main__":
@@ -818,7 +821,7 @@ if __name__ == "__main__":
         "--include-spectra",
         action="store_true",
         help="Should the spectra be included in the grid?",
-        default=False,
+        default=True,
         required=False,
     )
 
