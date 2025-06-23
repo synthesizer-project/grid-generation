@@ -130,7 +130,7 @@ def convertPOPIII(fileloc):
     """
     data = open(fileloc, "r")
     tmp = data.readlines()
-    mass = float(re.findall(r"\d+\.\d+", tmp[0])[0])
+    mass = float(re.findall(r"\d+\.\d+(?:[eE][+-]?\d+)?", tmp[0])[0])
     begin = 9
     end = begin + lam_num[0]
     for ii in range(len(ageBins)):

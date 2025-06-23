@@ -887,7 +887,7 @@ if __name__ == "__main__":
 
     # Extract axes and axes values from the Grid
     incident_axes = incident_grid.axes
-    incident_axes_values = incident_grid._axes_values
+    incident_axes_values = incident_grid.axes_values
 
     # Get properties of the incident grid
     (
