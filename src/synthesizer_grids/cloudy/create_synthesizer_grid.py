@@ -665,11 +665,15 @@ def add_lines(
     if calculate_continuum:
         continuum_quantities = [
             "transmitted",
+            "incident",
             "nebular_continuum",
             "total_continuum",
         ]
 
         spectra_ = {}
+
+        # Calculate incideted_contiuum
+        spectra_["incident"] = spectra["incident"]
 
         # Calculate transmitted_contiuum
         spectra_["transmitted"] = spectra["transmitted"]
