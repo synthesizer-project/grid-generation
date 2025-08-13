@@ -195,13 +195,13 @@ def make_grid(original_model_name, bin, input_dir, grid_dir):
     # Write datasets specific to BPASS
     out_grid.write_dataset(
         "star_fraction",
-        stellar_fraction * Msun,
+        stellar_fraction * dimensionless,
         "Two-dimensional remaining stellar fraction grid, [age, Z]",
         log_on_read=False,
     )
     out_grid.write_dataset(
         "remnant_fraction",
-        remnant_fraction * Msun,
+        remnant_fraction * dimensionless,
         "Two-dimensional remaining remnant fraction grid, [age, Z]",
         log_on_read=False,
     )
