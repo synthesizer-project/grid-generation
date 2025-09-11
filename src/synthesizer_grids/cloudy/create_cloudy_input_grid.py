@@ -217,11 +217,7 @@ if __name__ == "__main__":
         incident_grid_name += ".hdf5"
 
     # Open the incident grid using synthesizer
-    incident_grid = Grid(
-        incident_grid_name,
-        grid_dir=incident_grid_dir,
-        read_lines=False,
-    )
+    incident_grid = Grid(incident_grid_name, grid_dir=incident_grid_dir)
 
     # Extract axes and axes values from the Grid
     incident_axes = incident_grid.axes
