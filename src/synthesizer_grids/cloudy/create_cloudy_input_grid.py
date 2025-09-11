@@ -63,14 +63,17 @@ def create_cloudy_input(
 
     # Initialise depletion model
     if "depletion_model" in parameters.keys():
-        if "depletion_scale" not in parameters.keys():
-            depletion_scale = 1.0
+        if parameters["depletion_model"] is None:
+            depletion_model = None
         else:
-            depletion_scale = parameters["depletion_scale"]
+            if "depletion_scale" not in parameters.keys():
+                depletion_scale = 1.0
+            else:
+                depletion_scale = parameters["depletion_scale"]
 
-        depletion_model = getattr(
-            depletion_models, parameters["depletion_model"]
-        )(scale=depletion_scale)
+            depletion_model = getattr(
+                depletion_models, parameters["depletion_model"]
+            )(scale=depletion_scale)
 
     else:
         depletion_model = None
