@@ -112,13 +112,13 @@ if __name__ == "__main__":
     print(args.list_file, args.list_index)
 
     # If a list is provided open the file containing the list
-    if args.list_file is not False:
+    if args.list_file is not None:
         incident_indices, photoionisation_indices = np.loadtxt(
             args.list_file, dtype=int
         )
 
         # If an index is also provided just choose this model
-        if args.list_index is not False:
+        if args.list_index is not None:
             incident_indices = [incident_indices[args.list_index]]
             photoionisation_indices = [
                 photoionisation_indices[args.list_index]
