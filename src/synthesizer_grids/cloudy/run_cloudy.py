@@ -109,6 +109,8 @@ if __name__ == "__main__":
     # Create arrays of the the incident and photoionisation indices for
     # the models we want to run
 
+    print(args.list_file, args.list_index)
+
     # If a list is provided open the file containing the list
     if args.list_file is not False:
         incident_indices, photoionisation_indices = np.loadtxt(
