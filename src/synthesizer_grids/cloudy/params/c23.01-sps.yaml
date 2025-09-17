@@ -6,7 +6,9 @@ cloudy_version: c23.01
 # ABUNDANCE PATTERN AND DEPLETION
 reference_abundance: GalacticConcordance # the reference abundance pattern to assume
 alpha_enhancement: 0.0  # alpha element enhancement
-abundance_scalings: GalacticConcordance
+abundance_scalings: 
+  nitrogen: GalacticConcordance
+  carbon: GalacticConcordance
 depletion_model: Jenkins2009_Gunasekera2021 # the depletion model.
 depletion_scale: 0.5 # the depletion scale factor. For linearly scaled depletion models (e.g. CloudyClassic, Gutkin2016) this is by default 1.0. For Jenkins2009 this should be 0.5 (fstar).
 
