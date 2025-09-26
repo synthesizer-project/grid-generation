@@ -1,0 +1,5 @@
+abundance_scalings:
+  nitrogen_to_oxygen: GalacticConcordance
+  carbon_to_oxygen: [-1.5, -1.0, -0.34, 0.0] # scaling for Carbon, either float relative to Solar or string defining the in-built function to use
+
+  

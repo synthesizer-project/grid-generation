@@ -25,7 +25,7 @@ reference_age: 1.0e+6  # log10(age/year) at which to set reference ionisation pa
 reference_metallicity: 0.01  # metallicity at which to set reference ionisation parameter, for U_model='ref'
 
 # DENSITY
-hydrogen_density: 3.16e+3 # hydrogen density in cm^-3 (==10^2.5)
+hydrogen_density: 3.16e+2 # hydrogen density in cm^-3 (==10^2.5)
 constant_density: True  # flag for constant density
 
 # STOPPING CRITERIA
