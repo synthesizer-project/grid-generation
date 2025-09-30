@@ -77,13 +77,16 @@ def generate_grid(model):
     nmetal = len(metallicities)
 
     spec = np.zeros((na, nmetal, len(lam)))
+    stellar_fraction = np.zeros((na, nmetal))
 
     for imetal in range(nmetal):
         spec_ = sp.get_spectrum(zmet=imetal + 1)[1]  # 2D array Lsol / AA
+        _mfrac = sp.stellar_mass / sp.formed_mass
         for ia in range(na):
             lnu = spec_[ia]  # Lsol / Hz
             lnu *= 3.826e33  # erg s^-1 Hz^-1 Msol^-1
             spec[ia, imetal] = lnu
+            stellar_fraction[ia, imetal] = _mfrac[ia]
 
     # Create the GridFile ready to take outputs
     out_grid = GridFile(out_filename)
@@ -107,6 +110,14 @@ def generate_grid(model):
         alt_axes=("log10ages", "metallicities"),
         log_on_read=log_on_read,
         weight="initial_masses",
+    )
+
+    # Write datasets specific to fsps
+    out_grid.write_dataset(
+        "star_fraction",
+        stellar_fraction * dimensionless,
+        "Two-dimensional remaining stellar fraction grid, [age, Z]",
+        log_on_read=False,
     )
 
     # Include the specific ionising photon luminosity
