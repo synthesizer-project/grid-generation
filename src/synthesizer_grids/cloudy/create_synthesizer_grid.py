@@ -66,6 +66,12 @@ pluralisation_of_axes = {
     "stop_column_density": "column_densities",
     "alpha_enhancement": "alpha_enhancements",
     "reference_ionisation_parameter": "reference_ionisation_parameters",
+    "abundance_scalings.nitrogen_to_oxygen": (
+        "abundance_scalings.nitrogen_to_oxygen"
+    ),
+    "abundance_scalings.carbon_to_oxygen": (
+        "abundance_scalings.carbon_to_oxygen"
+    ),
 }
 
 
