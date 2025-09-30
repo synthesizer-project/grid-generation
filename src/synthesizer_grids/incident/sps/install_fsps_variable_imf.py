@@ -55,6 +55,7 @@ def generate_grid(model):
 
     # Define the output array
     spec = np.zeros((na, nmetal, len(high_mass_slopes), len(lam)))
+    stellar_fraction = np.zeros((na, nmetal, len(high_mass_slopes)))
 
     for high_mass_slope_index, high_mass_slope in enumerate(high_mass_slopes):
         print(high_mass_slope)
@@ -78,7 +79,7 @@ def generate_grid(model):
         # Loop over metallicity
         for metallicity_index in range(nmetal):
             spec_ = sp.get_spectrum(zmet=metallicity_index + 1)[1]
-
+            _mfrac = sp.stellar_mass / sp.formed_mass
             # Loop over age
             for age_index in range(na):
                 # Extract spectra in Lsol / Hz
@@ -89,6 +90,9 @@ def generate_grid(model):
 
                 # Assign to array
                 spec[age_index, metallicity_index, high_mass_slope_index] = lnu
+                stellar_fraction[
+                    age_index, metallicity_index, high_mass_slope_index
+                ] = _mfrac[age_index]
 
     # Create the GridFile ready to take outputs
     out_grid = GridFile(out_filename)
@@ -117,6 +121,14 @@ def generate_grid(model):
             "high_mass_slope": "high mass (>0.5 Msun) slope of the IMF"
         },
         log_on_read=log_on_read,
+    )
+
+    # Write datasets specific to fsps
+    out_grid.write_dataset(
+        "star_fraction",
+        stellar_fraction * dimensionless,
+        "Three-dimensional remaining stellar fraction grid, [age, Z, high_mass_slope]",
+        log_on_read=False,
     )
 
     # Include the specific ionising photon luminosity
