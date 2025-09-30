@@ -22,7 +22,7 @@ geometry: planeparallel
 
 # IONISATION PARAMETER 
 ionisation_parameter_model: fixed  # which ionisation parameter model to use. `ref` assumes a varying ionisation parameter at a fixed reference age and metallicity
-ionisation_parameter: [0.001, 0.01, 0.1]  # value of ionisation 
+ionisation_parameter: [0.0001, 0.001, 0.01, 0.1]  # value of ionisation 
 # DENSITY
 hydrogen_density: [1.0e+2, 1.0e+3, 1.0e+4, 1.0e+5]  
 
