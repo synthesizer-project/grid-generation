@@ -67,7 +67,7 @@ def create_cloudy_input(
                     value = v
 
                 # convert to synthesizer standard
-                parameters["abundance_scalings"][kk] = v
+                parameters["abundance_scalings"][kk] = value
 
     # Initialise depletion model
     if "depletion_model" in parameters.keys():
@@ -85,6 +85,7 @@ def create_cloudy_input(
 
     else:
         depletion_model = None
+
     # Create synthesizer.Abundance object
     abundances = Abundances(
         metallicity=float(parameters["metallicities"]),
