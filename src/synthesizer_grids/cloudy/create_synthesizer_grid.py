@@ -830,7 +830,7 @@ if __name__ == "__main__":
         "--include-spectra",
         action="store_true",
         help="Should the spectra be included in the grid?",
-        default=True,
+        default=False,
         required=False,
     )
 
