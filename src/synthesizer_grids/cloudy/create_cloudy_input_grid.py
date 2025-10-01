@@ -58,6 +58,14 @@ def create_cloudy_input(
         if len(k.split(".")) > 1:
             if k.split(".")[0] == "abundance_scalings":
                 kk = k.split(".")[1]
+
+                # The value (v) here could be a bona fide string or number,
+                # try to convert to a
+                try:
+                    value = float(v)
+                except ValueError:
+                    value = v
+
                 # convert to synthesizer standard
                 parameters["abundance_scalings"][kk] = v
 
@@ -125,7 +133,7 @@ def create_cloudy_input(
     elif parameters["ionisation_parameter_model"] == "fixed":
         ionisation_parameter = parameters["ionisation_parameter"]
 
-    # If the model is not regnoised raise an exception
+    # If the model is not recognised raise an exception
     else:
         raise InconsistentParameter(
             f"""ERROR: do not understand U model choice:
