@@ -59,15 +59,16 @@ def create_cloudy_input(
             if k.split(".")[0] == "abundance_scalings":
                 kk = k.split(".")[1]
 
-                # The value (v) here could be a bona fide string or number,
-                # try to convert to a
-                try:
-                    value = float(v)
-                except ValueError:
-                    value = v
+                if v:
+                    # The value (v) here could be a bona fide string or number,
+                    # try to convert to a
+                    try:
+                        value = float(v)
+                    except ValueError:
+                        value = v
 
-                # convert to synthesizer standard
-                parameters["abundance_scalings"][kk] = value
+                    # convert to synthesizer standard
+                    parameters["abundance_scalings"][kk] = value
 
     # Initialise depletion model
     if "depletion_model" in parameters.keys():
