@@ -154,6 +154,8 @@ if __name__ == "__main__":
         incident_indices = incident_indices.flatten()
         photoionisation_indices = photoionisation_indices.flatten()
 
+    print(incident_indices)
+
     # Loop over the list of indices and run each one
     for incident_index, photoionisation_index in zip(
         incident_indices, photoionisation_indices
@@ -177,5 +179,5 @@ if __name__ == "__main__":
 
             # Run the cloudy job
             command = f"{cloudy_executable} -r {photoionisation_index}"
-            print(command)
+            # print(command)
             # os.system(command)
