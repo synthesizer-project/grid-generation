@@ -110,13 +110,13 @@ if __name__ == "__main__":
     # the models we want to run
 
     # If a list is provided open the file containing the list
-    if args.list_file is not False:
+    if args.list_file is not None:
         incident_indices, photoionisation_indices = np.loadtxt(
             args.list_file, dtype=int
         )
 
         # If an index is also provided just choose this model
-        if args.list_index is not False:
+        if args.list_index is not None:
             incident_indices = [incident_indices[args.list_index]]
             photoionisation_indices = [
                 photoionisation_indices[args.list_index]
@@ -154,6 +154,9 @@ if __name__ == "__main__":
         incident_indices = incident_indices.flatten()
         photoionisation_indices = photoionisation_indices.flatten()
 
+    print(incident_indices)
+    print(photoionisation_indices)
+
     # Loop over the list of indices and run each one
     for incident_index, photoionisation_index in zip(
         incident_indices, photoionisation_indices
@@ -161,21 +164,18 @@ if __name__ == "__main__":
         # change directory to the output directory
         os.chdir(f"{output_directory}/{incident_index}")
 
-        # Loop over each photoionisation model
-        for photoionisation_index in photoionisation_indices:
-            # Define the cloudy input file
-            input_file = (
-                f"{output_directory}/{incident_index}"
-                f"/{photoionisation_index}.in"
-            )
+        # Define the cloudy input file
+        input_file = (
+            f"{output_directory}/{incident_index}"
+            f"/{photoionisation_index}.in"
+        )
 
-            # Define the cloudy executable path
-            cloudy_executable = (
-                f"{args.cloudy_executable_path}/{parameters['cloudy_version']}"
-                "/source/cloudy.exe"
-            )
+        # Define the cloudy executable path
+        cloudy_executable = (
+            f"{args.cloudy_executable_path}/{parameters['cloudy_version']}"
+            "/source/cloudy.exe"
+        )
 
-            # Run the cloudy job
-            command = f"{cloudy_executable} -r {photoionisation_index}"
-            print(command)
-            os.system(command)
+        # Run the cloudy job
+        command = f"{cloudy_executable} -r {photoionisation_index}"
+        os.system(command)
