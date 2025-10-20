@@ -161,21 +161,19 @@ if __name__ == "__main__":
         # change directory to the output directory
         os.chdir(f"{output_directory}/{incident_index}")
 
-        # Loop over each photoionisation model
-        for photoionisation_index in photoionisation_indices:
-            # Define the cloudy input file
-            input_file = (
-                f"{output_directory}/{incident_index}"
-                f"/{photoionisation_index}.in"
-            )
+        # Define the cloudy input file
+        input_file = (
+            f"{output_directory}/{incident_index}"
+            f"/{photoionisation_index}.in"
+        )
 
-            # Define the cloudy executable path
-            cloudy_executable = (
-                f"{args.cloudy_executable_path}/{parameters['cloudy_version']}"
-                "/source/cloudy.exe"
-            )
+        # Define the cloudy executable path
+        cloudy_executable = (
+            f"{args.cloudy_executable_path}/{parameters['cloudy_version']}"
+            "/source/cloudy.exe"
+        )
 
-            # Run the cloudy job
-            command = f"{cloudy_executable} -r {photoionisation_index}"
-            print(command)
-            os.system(command)
+        # Run the cloudy job
+        command = f"{cloudy_executable} -r {photoionisation_index}"
+        print(command)
+        os.system(command)
