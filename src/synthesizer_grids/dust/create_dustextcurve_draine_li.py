@@ -548,11 +548,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # ---------------------------
     # Download URLs for Draine optical property files
     # We use the high-resolution versions (81 radii for
     # silicate/graphite, 30 for PAH)
-    # ---------------------------
     SIL_URL = "https://www.astro.princeton.edu/~draine/dust/diel/Sil_81.gz"
     saveSIL = "./Sil_81.txt"  # save
     GRA_URL = "https://www.astro.princeton.edu/~draine/dust/diel/Gra_81.gz"
