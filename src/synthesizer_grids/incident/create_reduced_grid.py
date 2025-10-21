@@ -170,7 +170,6 @@ if __name__ == "__main__":
     original_grid = Grid(
         args.original_grid,
         grid_dir=f"{args.grid_dir}",
-        read_lines=False,
     )
 
     # Initialise the new axes
