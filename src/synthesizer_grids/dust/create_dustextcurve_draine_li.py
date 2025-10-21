@@ -61,7 +61,7 @@ def read_gz_lines(gzbytes: bytes, savename: str) -> List[str]:
         savename (string)
             Filename to save uncompressed text
     Returns:
-        list of strings with line breaks
+        string with line breaks
     """
     with gzip.GzipFile(fileobj=io.BytesIO(gzbytes)) as gf:
         txt = gf.read().decode("utf-8", errors="ignore")
@@ -110,7 +110,6 @@ def parse_draine_file_lines(
             if len(toks) >= 1:
                 try:
                     NRAD = int(toks[0])
-                    print(toks)
                     a_min = float(toks[1])
                     a_max = float(toks[2])
                 except Exception:
@@ -324,9 +323,7 @@ def calculate_Alam_over_NH(
     Alam_by_N_H = np.zeros(Nwav, dtype=float)
     for iw in range(Nwav):
         q = Qext[iw, :]
-        f_lin = interp1d(
-            radii_micron, q, bounds_error=False, fill_value="extrapolate"
-        )
+        f_lin = interp1d(radii_micron, q, bounds_error=False, fill_value=0)
         q_interp = f_lin(a_grid_micron)
         # integrand: pi a^2 Q * n(a) da  (a in cm, n in per cm, da in cm)
         integrand = math.pi * (a_grid_cm**2) * q_interp * n_a_per_cm
@@ -365,7 +362,7 @@ def interp_Q_to_grid(
             Q_orig[:, j],
             kind="linear",
             bounds_error=False,
-            fill_value="extrapolate",
+            fill_value=0,
         )
         Qw[:, j] = f(wav_target)
 
@@ -541,8 +538,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--plot_example",
-        type=bool,
-        default=False,
+        action="store_true",
         help="plot example extinction curves",
     )
 
@@ -739,9 +735,13 @@ if __name__ == "__main__":
             pah_a_min = args.a_min_mrn_pah
             pah_a_max = args.a_max_mrn_pah
 
-            print(
-                f"MRN bins (micron): small [{small_a_min:.4g}, {small_a_max:.4g}] large [{large_a_min:.4g}, {large_a_max:.4g}], PAH [{pah_a_min:.4g}, {pah_a_max:.4g}]"
-            )
+            if ii == 0:
+                print(
+                    f"MRN bins (micron): small [{small_a_min:.4g},"
+                    f"{small_a_max:.4g}] large [{large_a_min:.4g},"
+                    f"{large_a_max:.4g}], PAH [{pah_a_min:.4g},"
+                    f"{pah_a_max:.4g}]"
+                )
 
             n_s_small[ii] = build_mrn_component(
                 a_grid_int,
