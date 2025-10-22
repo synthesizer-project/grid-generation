@@ -312,7 +312,7 @@ def calculate_Alam_over_NH(
             of grain radii between a and a+da.
     Returns:
         A(lam)/N_H (NDArray)
-            extinction cross-section per H at each wavelength (cm^2 per H)
+            Attenuation curve A(lam)/N_H on wav_micron (units: mag cm^2)
     """
     micron_to_cm = (1.0 * um).to("cm").value  # 1e-4
     a_grid_cm = a_grid_micron * micron_to_cm
@@ -608,7 +608,6 @@ if __name__ == "__main__":
             parse_draine_file_lines(saveGRA)
         )
 
-    savePAHion = "./PAHion_30.txt"  # save
     if Path(savePAHion).exists():
         (
             radii_pah_ion,
@@ -628,7 +627,6 @@ if __name__ == "__main__":
             Qsca_pah_ion,
         ) = parse_draine_file_lines(savePAHion)
 
-    savePAHneu = "./PAHneu_30.txt"  # save
     if Path(savePAHneu).exists():
         (
             radii_pah_neu,
