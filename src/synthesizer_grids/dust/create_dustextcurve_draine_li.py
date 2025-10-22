@@ -539,9 +539,13 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--plot_example",
-        default=True,
         action="store_true",
         help="plot example extinction curves",
+    )
+    parser.add_argument(
+        "--show_plot",
+        action="store_true",
+        help="show the extinction curve plot",
     )
 
     args = parser.parse_args()
@@ -936,5 +940,5 @@ if __name__ == "__main__":
             dtg_grid[idx_dtg_pah],
             out_prefix,
             savefig=True,
-            show=True,
+            show=args.show_plot,
         )
