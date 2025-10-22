@@ -184,7 +184,7 @@ def build_mrn_component(
     """
     Build a truncated MRN-like grain-size distribution component
     with dn/da propto a^power over [a_min, a_max] (micron).
-    n(a) = C * a^(power+1), where C is a normalisation constant.
+    n(a) = C * a^power, where C is a normalisation constant.
     (C has units per H per cm^(power+1))
 
     Args:
@@ -314,7 +314,7 @@ def calculate_Alam_over_NH(
             of grain radii between a and a+da (per H per cm).
     Returns:
         A(lam)/N_H (NDArray)
-            Attenuation curve A(lam)/N_H on wav_micron (units: mag cm^2)
+            Attenuation curve A(lam)/N_H on wav_micron (units: mag cm^2 per H)
     """
     micron_to_cm = (1.0 * um).to("cm").value  # 1e-4
     a_grid_cm = a_grid_micron * micron_to_cm
@@ -387,7 +387,7 @@ def plot_extinction_curve(
         mode (str)
             size-distribution mode ("mrn" or "lognormal")
     """
-    if ax == None:
+    if ax is None:
         fig, ax = plt.subplots(figsize=(8, 5))
 
     wav_angstrom = wav_micron * 1e4
@@ -853,37 +853,37 @@ if __name__ == "__main__":
         ext_curves["silicate_small"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for silicate small grain component"
         )
-        ext_curves["silicate_small"].attrs["Units"] = "cm^2 per H"
+        ext_curves["silicate_small"].attrs["Units"] = "mag cm^2 per H"
 
         ext_curves["silicate_large"] = Alam_s_large
         ext_curves["silicate_large"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for silicate large grain component"
         )
-        ext_curves["silicate_large"].attrs["Units"] = "cm^2 per H"
+        ext_curves["silicate_large"].attrs["Units"] = "mag cm^2 per H"
 
         ext_curves["graphite_small"] = Alam_g_small
         ext_curves["graphite_small"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for graphite small grain component"
         )
-        ext_curves["graphite_small"].attrs["Units"] = "cm^2 per H"
+        ext_curves["graphite_small"].attrs["Units"] = "mag cm^2 per H"
 
         ext_curves["graphite_large"] = Alam_g_large
         ext_curves["graphite_large"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for graphite large grain component"
         )
-        ext_curves["graphite_large"].attrs["Units"] = "cm^2 per H"
+        ext_curves["graphite_large"].attrs["Units"] = "mag cm^2 per H"
 
         ext_curves["pah_ionized"] = Alam_pahion
         ext_curves["pah_ionized"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for PAH ionized component"
         )
-        ext_curves["pah_ionized"].attrs["Units"] = "cm^2 per H"
+        ext_curves["pah_ionized"].attrs["Units"] = "mag cm^2 per H"
 
         ext_curves["pah_neutral"] = Alam_pahneu
         ext_curves["pah_neutral"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for PAH neutral component"
         )
-        ext_curves["pah_neutral"].attrs["Units"] = "cm^2 per H"
+        ext_curves["pah_neutral"].attrs["Units"] = "mag cm^2 per H"
 
     print(f"Saved extinction curve grid to {args.grid_loc}/{grid_name}.hdf5")
 
@@ -975,6 +975,8 @@ if __name__ == "__main__":
         plt.savefig(png_name, dpi=200)
         print(f"Saved plot: {png_name}")
         if args.show_plot:
+            print("Showing plot")
             plt.show()
         else:
+            print("Closing plot")
             plt.close()
