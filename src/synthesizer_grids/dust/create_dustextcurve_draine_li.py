@@ -853,37 +853,37 @@ if __name__ == "__main__":
         ext_curves["silicate_small"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for silicate small grain component"
         )
-        ext_curves["silicate_small"].attrs["Units"] = "mag cm^2 per H"
+        ext_curves["silicate_small"].attrs["Units"] = "mag cm^2"
 
         ext_curves["silicate_large"] = Alam_s_large
         ext_curves["silicate_large"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for silicate large grain component"
         )
-        ext_curves["silicate_large"].attrs["Units"] = "mag cm^2 per H"
+        ext_curves["silicate_large"].attrs["Units"] = "mag cm^2"
 
         ext_curves["graphite_small"] = Alam_g_small
         ext_curves["graphite_small"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for graphite small grain component"
         )
-        ext_curves["graphite_small"].attrs["Units"] = "mag cm^2 per H"
+        ext_curves["graphite_small"].attrs["Units"] = "mag cm^2"
 
         ext_curves["graphite_large"] = Alam_g_large
         ext_curves["graphite_large"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for graphite large grain component"
         )
-        ext_curves["graphite_large"].attrs["Units"] = "mag cm^2 per H"
+        ext_curves["graphite_large"].attrs["Units"] = "mag cm^2"
 
         ext_curves["pah_ionized"] = Alam_pahion
         ext_curves["pah_ionized"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for PAH ionized component"
         )
-        ext_curves["pah_ionized"].attrs["Units"] = "mag cm^2 per H"
+        ext_curves["pah_ionized"].attrs["Units"] = "mag cm^2"
 
         ext_curves["pah_neutral"] = Alam_pahneu
         ext_curves["pah_neutral"].attrs["Description"] = (
             "Extinction curve A(lam)/N_H for PAH neutral component"
         )
-        ext_curves["pah_neutral"].attrs["Units"] = "mag cm^2 per H"
+        ext_curves["pah_neutral"].attrs["Units"] = "mag cm^2"
 
     print(f"Saved extinction curve grid to {args.grid_loc}/{grid_name}.hdf5")
 
