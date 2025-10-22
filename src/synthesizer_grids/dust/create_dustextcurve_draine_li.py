@@ -106,7 +106,7 @@ def parse_draine_file_lines(
         if "NRAD" in L:
             left = L.split("=")[0].strip()
             toks = left.split()
-            if len(toks) >= 1:
+            if len(toks) >= 3:
                 try:
                     NRAD = int(toks[0])
                     a_min = float(toks[1])
@@ -539,6 +539,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--plot_example",
+        default=True,
         action="store_true",
         help="plot example extinction curves",
     )
