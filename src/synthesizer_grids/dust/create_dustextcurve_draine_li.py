@@ -15,13 +15,14 @@ import gzip
 import math
 import argparse
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from numpy.typing import NDArray
 from datetime import date
 
 import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 import requests
 import h5py
 
@@ -183,7 +184,8 @@ def build_mrn_component(
     """
     Build a truncated MRN-like grain-size distribution component
     with dn/da propto a^power over [a_min, a_max] (micron).
-    n(a) = C * a^(power+1), where C is a normalisation constant
+    n(a) = C * a^(power+1), where C is a normalisation constant.
+    (C has units per H per cm^(power+1))
 
     Args:
         a_grid_micron (NDArray)
@@ -202,32 +204,26 @@ def build_mrn_component(
         n(a) (NDArray)
             grain size distribution n(a) on a_grid_micron
             defined as number per Hydrogen nucleus in the range
-            of grain radii between a and a+da.
+            of grain radii between a and a+da (units of per H per cm).
     """
-    # S = ∫ a^p da over [a_min, a_max] (a in micron)
-    if abs(power + 1.0) < 1e-12:
-        S = math.log(a_max / a_min)
-    else:
-        S = (a_max ** (power + 1.0) - a_min ** (power + 1.0)) / (power + 1.0)
-
-    p4 = power + 4.0
-    if abs(p4) < 1e-12:
-        I_a3 = math.log(a_max / a_min)
-    else:
-        I_a3 = (a_max**p4 - a_min**p4) / p4
-
-    a3_mean_micron3 = I_a3 / S  # <a^3> in micron^3
     micron_to_cm = (1.0 * um).to("cm").value  # 1e-4
-    a3_mean_cm3 = a3_mean_micron3 * (micron_to_cm**3)
-    mass_per_grain = (4.0 / 3.0) * math.pi * rho * a3_mean_cm3
-    if mass_per_grain <= 0:
-        raise ValueError("Non-positive mass per grain; check parameters.")
-    N = mass_per_H / mass_per_grain  # number per H total for component
-    # shape s(a) = a^p / S (units 1/micron)
-    s = np.zeros_like(a_grid_micron)
+    a_grid_cm = a_grid_micron * micron_to_cm
+    a_min_cm = a_min * micron_to_cm
+    a_max_cm = a_max * micron_to_cm
+
+    # Compute the noramlisation C
+    numerator = 3 * mass_per_H
+    integral = ((a_max_cm ** (power + 4)) - (a_min_cm ** (power + 4))) / (
+        power + 4
+    )
+    denominator = 4 * math.pi * rho * integral
+    C = numerator / denominator
+
+    n_a = np.zeros_like(a_grid_micron)
     mask = (a_grid_micron >= a_min) & (a_grid_micron <= a_max)
-    s[mask] = (a_grid_micron[mask] ** power) / S
-    n_a = N * s
+    # n_a in units of H per cm
+    n_a[mask] = C * (a_grid_cm[mask] ** power)
+
     return n_a
 
 
@@ -241,12 +237,17 @@ def build_lognormal_component(
     """
     Build the lognormal-type component with the form
     n(a) = C / a^4 * exp( - (ln(a/a0))^2 / (2 sigma^2) ),
-    where a is in micron and n(a) is number per H per micron.
-    C is chosen so the component total mass per H = mass_per_H (g per H).
+    where a is in micron and n(a) is grain number per H per micron.
+    C is chosen so the component total mass per H = mass_per_H (g per H),
+    i.e. mu m_H DTG = integral (4/3 pi a^3 rho n(a) da) from 0 -> infinity.
+    (0 -> infinity as the function is lognormal)
     Reference: Hirashita 2015 (https://arxiv.org/abs/1412.3866)
     See eq 31 in that paper.
-    implies C = 3 * mass_per_H / (4 pi rho sqrt(2 pi) sigma_ln
-    for the lmit 0 -> infinity (change of variable to x=ln(a/a0))
+    We already calculated mass_per_H (mu m_H DTG) using the DTG ratio.
+    This implies C = 3 * mass_per_H / (4 pi rho integral),
+    where the integral is (1/a) exp(- (ln(a/a0)^2/(2 sigma^2))) da
+    (for the lmit -infinity -> infinity, change of variable to x=ln(a/a0)
+    the gaussian integral is sqrt(2 pi) sigma_ln)
 
     Args:
         a_grid_micron (NDArray)
@@ -263,21 +264,23 @@ def build_lognormal_component(
         n(a) (NDArray)
             grain size distribution n(a) on a_grid_micron
             defined as number per Hydrogen nucleus in the range
-            of grain radii between a and a+da.
+            of grain radii between a and a+da (per H per cm).
     """
     if sigma_ln <= 0:
         raise ValueError("sigma_ln must be > 0")
 
     # compute C using analytic integral:
-    micron_to_cm = (1.0 * um).to("cm").value  # 1e-4
-    prefac = (4.0 / 3.0) * math.pi * rho * (micron_to_cm**3) * micron_to_cm  #
-    denom = prefac * math.sqrt(2.0 * math.pi) * sigma_ln
-    if denom <= 0:
+    numerator = 3 * mass_per_H
+    denominator = 4 * math.pi * rho * math.sqrt(2 * math.pi) * sigma_ln
+    if denominator <= 0:
         raise ValueError("Denominator for C non-positive.")
-    C = mass_per_H / denom
+    C = numerator / denominator  # units per H per cm^(-3)
 
     exponent = -0.5 * ((np.log(a_grid_micron / a0_micron)) / sigma_ln) ** 2
-    n_a = (C / (a_grid_micron**4)) * np.exp(exponent)
+
+    micron_to_cm = (1.0 * um).to("cm").value  # 1e-4
+    # n_a in units of per H per cm
+    n_a = (C / ((a_grid_micron * micron_to_cm) ** 4)) * np.exp(exponent)
 
     return n_a
 
@@ -308,15 +311,15 @@ def calculate_Alam_over_NH(
         n_a (NDArray)
             grain size distribution n(a) on a_grid_micron
             defined as number per Hydrogen nucleus in the range
-            of grain radii between a and a+da.
+            of grain radii between a and a+da (per H per cm).
     Returns:
         A(lam)/N_H (NDArray)
             Attenuation curve A(lam)/N_H on wav_micron (units: mag cm^2)
     """
     micron_to_cm = (1.0 * um).to("cm").value  # 1e-4
     a_grid_cm = a_grid_micron * micron_to_cm
-    # n_a is number per H per micron -> convert to number per H per cm: n_a_per_cm = n_a / micron_to_cm
-    n_a_per_cm = n_a / micron_to_cm
+
+    prefac = 2.5 * np.log(np.e)
 
     Nwav = wav_micron.size
     Alam_by_N_H = np.zeros(Nwav, dtype=float)
@@ -324,11 +327,11 @@ def calculate_Alam_over_NH(
         q = Qext[iw, :]
         f_lin = interp1d(radii_micron, q, bounds_error=False, fill_value=0)
         q_interp = f_lin(a_grid_micron)
-        # integrand: pi a^2 Q * n(a) da  (a in cm, n in per cm, da in cm)
-        integrand = math.pi * (a_grid_cm**2) * q_interp * n_a_per_cm
-        Alam_by_N_H[iw] = (
-            2.5 * np.log(np.e) * np.trapezoid(integrand, a_grid_cm)
-        )
+        # Integrand: pi a^2 Q * n(a) da  (a in cm, n in per H per cm,
+        # da in cm, Q is unitless)
+        integrand = math.pi * (a_grid_cm**2) * q_interp * n_a
+        # In units of mag cm^2
+        Alam_by_N_H[iw] = prefac * np.trapezoid(integrand, a_grid_cm)
 
     return Alam_by_N_H
 
@@ -371,14 +374,8 @@ def interp_Q_to_grid(
 def plot_extinction_curve(
     wav_micron: NDArray,
     A_over_Av: NDArray,
-    mode: str,
-    DTG_sil: float,
-    DTG_gra: float,
-    DTG_PAH: float,
-    out_prefix: str,
-    savefig: bool = True,
-    show: bool = False,
-):
+    ax: Optional[Axes] = None,
+) -> Axes:
     """
     Plot extinction curve A(λ)/A(V).
 
@@ -389,24 +386,14 @@ def plot_extinction_curve(
             extinction curve A(λ)/A(V)
         mode (str)
             size-distribution mode ("mrn" or "lognormal")
-        DTG_sil (float)
-            dust-to-gas mass ratio for silicate
-        DTG_gra (float)
-            dust-to-gas mass ratio for graphite
-        DTG_PAH (float)
-            dust-to-gas mass ratio for PAH
-        out_prefix (str)
-            output file prefix for saving plot
-        savefig (bool)
-            whether to save the figure (default: True)
-        show (bool)
-            whether to show the figure (default: False)
     """
-    plt.figure(figsize=(8, 5))
+    if ax == None:
+        fig, ax = plt.subplots(figsize=(8, 5))
+
     wav_angstrom = wav_micron * 1e4
-    plt.plot(wav_angstrom, A_over_Av, label="Attenuation curve")
+    ax.plot(wav_angstrom, A_over_Av, label="Attenuation curve")
     curve = Calzetti2000(ampl=10.0)
-    plt.plot(
+    ax.plot(
         wav_angstrom,
         curve.get_tau(wav_angstrom * Angstrom),
         ls="--",
@@ -414,32 +401,21 @@ def plot_extinction_curve(
     )
     for c in ["MW", "LMC", "SMC"]:
         curve_wd01 = GrainsWD01(model=c)
-        plt.plot(
+        ax.plot(
             wav_angstrom,
             curve_wd01.get_tau(wav_angstrom * Angstrom),
             ls=":",
             label=f"{c}",
         )
     curve_wd01 = GrainsWD01(model="MW")
-    plt.xlabel("Wavelength (AA)")
-    plt.ylabel("A(λ) / A(V)")
-    plt.title(
-        f"Extinction ({mode}) — sil DTG={DTG_sil:.3g}, gra DTG={DTG_gra:.3g}, PAH DTG={DTG_PAH:.3g}"
-    )
-    plt.xlim(800, 1e4)
-    plt.xticks(np.arange(1000, 10001, 1000))
+    ax.set_xlabel("Wavelength (AA)", fontsize=12)
+    ax.set_ylabel(r"A($\lambda$) / A(V)", fontsize=12)
+    ax.set_xlim(800, 1e4)
+    ax.set_xticks(np.arange(1000, 10001, 1000))
     # plt.ylim(1e-3, max(5.0, np.max(A_over_Av)*2.0))
-    plt.grid(which="both", ls="--", alpha=0.4)
-    plt.legend(fontsize="small", ncol=2)
-    plt.tight_layout()
-    if savefig:
-        png_name = f"{out_prefix}_{mode}.png"
-        plt.savefig(png_name, dpi=200)
-        print(f"Saved plot: {png_name}")
-    if show:
-        plt.show()
-    else:
-        plt.close()
+    ax.grid(which="both", ls="--", alpha=0.4)
+    ax.legend(fontsize=11, ncol=2)
+    return ax
 
 
 if __name__ == "__main__":
@@ -516,7 +492,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--a-max-mrn",
         type=float,
-        default=10.0,
+        default=0.25,
         help="MRN a_max (micron) when using MRN",
     )
     parser.add_argument(
@@ -679,6 +655,7 @@ if __name__ == "__main__":
     n_pahneu = np.zeros((N_DTG, N_A_INT))  # PAH neutral
 
     # Compute grain size distributions for each DTG
+    # These are in units of per H per com
     if args.mode == "lognormal":
         for ii, mass_per_H_grain in enumerate(mass_per_H_grain_grid):
             n_s_small[ii] = build_lognormal_component(
@@ -914,9 +891,12 @@ if __name__ == "__main__":
         # Plot example extinction curves for specific DTG values
         iv = np.argmin(np.abs(all_wav - V_WAVELENGTH))
 
+        # Same DTG for both small and large grains
         DTG_sil = 0.006  # example dust-to-gas ratio for plotting
-        DTG_gra = 0.002  # example dust-to-gas ratio for plotting
+        DTG_gra = 0.003  # example dust-to-gas ratio for plotting
+
         DTG_PAH = 0.0001  # example dust-to-gas ratio for plotting
+
         idx_dtg_sil = np.argmin(np.abs(dtg_grid - DTG_sil))
         idx_dtg_gra = np.argmin(np.abs(dtg_grid - DTG_gra))
         idx_dtg_pah = np.argmin(np.abs(dtg_grid - DTG_PAH))
@@ -930,15 +910,71 @@ if __name__ == "__main__":
         )
         A_V = A_total[iv]
         A_over_Av = A_total / A_V
+        print("Av/NH = ", A_V, "mag cm^2")
+        print("Milky Way sightline, Rv=3.1:")
+        print("Av/NH = 5.2E-22 mag cm^2")
         out_prefix = "dust_extinction_curve"
-        plot_extinction_curve(
-            all_wav,
-            A_over_Av,
-            args.mode,
-            dtg_grid[idx_dtg_sil],
-            dtg_grid[idx_dtg_gra],
-            dtg_grid[idx_dtg_pah],
-            out_prefix,
-            savefig=True,
-            show=args.show_plot,
+        fig, axs = plt.subplots(figsize=(8, 8), nrows=2, ncols=1)
+        axs = axs.ravel()
+        plot_extinction_curve(all_wav, A_over_Av, axs[0])
+
+        micron_to_cm = (1.0 * um).to("cm").value  # 1e-4
+        a_grid_int_cm = a_grid_int * micron_to_cm
+
+        n_gra = n_g_small[idx_dtg_gra] + n_g_large[idx_dtg_gra]
+        ok = n_gra != 0
+        axs[1].loglog(
+            a_grid_int[ok],
+            (a_grid_int_cm[ok] ** 4) * n_gra[ok],
+            label="Graphite",
+            c="black",
+            ls="dashed",
         )
+
+        n_sil = n_s_small[idx_dtg_sil] + n_s_large[idx_dtg_sil]
+        ok = n_sil != 0
+        axs[1].loglog(
+            a_grid_int[ok],
+            (a_grid_int_cm[ok] ** 4) * n_sil[ok],
+            label="Silicate",
+            c="blue",
+            ls="dashed",
+        )
+
+        ok = n_pahion[idx_dtg_pah] != 0
+        axs[1].loglog(
+            a_grid_int[ok],
+            (a_grid_int_cm[ok] ** 4) * n_pahion[idx_dtg_pah][ok],
+            label="PAH ionised",
+            c="olive",
+            ls="dotted",
+            lw=4,
+        )
+
+        ok = n_pahneu[idx_dtg_pah] != 0
+        axs[1].loglog(
+            a_grid_int[ok],
+            (a_grid_int_cm[ok] ** 4) * n_pahneu[idx_dtg_pah][ok],
+            label="PAH neutral",
+            c="red",
+            ls="dotted",
+        )
+
+        axs[1].set_ylim(1e-30, 1e-26)
+        axs[1].set_xlabel("a (um)", fontsize=12)
+        axs[1].set_ylabel(r"a$^{4}$ n(a) / (grains/H cm$^3$)", fontsize=12)
+        axs[1].grid(which="both", ls="--", alpha=0.4)
+        axs[1].legend(fontsize=11, ncol=2)
+
+        fig.suptitle(
+            f"Extinction ({args.mode}) — sil DTG={DTG_sil:.3g}, gra DTG={DTG_gra:.3g}, PAH DTG={DTG_PAH:.3g}"
+        )
+
+        plt.tight_layout()
+        png_name = f"{out_prefix}_{args.mode}.png"
+        plt.savefig(png_name, dpi=200)
+        print(f"Saved plot: {png_name}")
+        if args.show_plot:
+            plt.show()
+        else:
+            plt.close()
