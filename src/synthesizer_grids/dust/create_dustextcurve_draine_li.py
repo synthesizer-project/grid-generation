@@ -20,7 +20,6 @@ from numpy.typing import NDArray
 from datetime import date
 
 import numpy as np
-import pandas as pd
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 import requests
@@ -390,10 +389,12 @@ def plot_extinction_curve(
             extinction curve A(λ)/A(V)
         mode (str)
             size-distribution mode ("mrn" or "lognormal")
-        D2G_sil (float)
+        DTG_sil (float)
             dust-to-gas mass ratio for silicate
-        D2G_gra (float)
+        DTG_gra (float)
             dust-to-gas mass ratio for graphite
+        DTG_PAH (float)
+            dust-to-gas mass ratio for PAH
         out_prefix (str)
             output file prefix for saving plot
         savefig (bool)
