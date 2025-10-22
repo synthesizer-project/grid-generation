@@ -384,8 +384,6 @@ def plot_extinction_curve(
             wavelength grid (micron)
         A_over_Av (NDArray)
             extinction curve A(λ)/A(V)
-        mode (str)
-            size-distribution mode ("mrn" or "lognormal")
     """
     if ax is None:
         fig, ax = plt.subplots(figsize=(8, 5))
@@ -655,7 +653,7 @@ if __name__ == "__main__":
     n_pahneu = np.zeros((N_DTG, N_A_INT))  # PAH neutral
 
     # Compute grain size distributions for each DTG
-    # These are in units of per H per com
+    # These are in units of per H per cm
     if args.mode == "lognormal":
         for ii, mass_per_H_grain in enumerate(mass_per_H_grain_grid):
             n_s_small[ii] = build_lognormal_component(
@@ -827,6 +825,9 @@ if __name__ == "__main__":
         f"_alarge{str(args.large_centre).replace('.', 'p')}"
         f"_apah{str(args.pah_centre).replace('.', 'p')}"
     )
+
+    # Ensure output directory exists
+    Path(args.grid_loc).mkdir(parents=True, exist_ok=True)
 
     with h5py.File(f"{args.grid_loc}/{grid_name}.hdf5", "w") as hf:
         hf.attrs["Header"] = header
