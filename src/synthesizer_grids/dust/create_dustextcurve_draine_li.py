@@ -912,7 +912,7 @@ if __name__ == "__main__":
         A_over_Av = A_total / A_V
         print("Av/NH = ", A_V, "mag cm^2")
         print("Milky Way sightline, Rv=3.1:")
-        print("Av/NH = 5.2E-22 mag cm^2")
+        print("Av/NH = 5.3E-22 mag cm^2")
         out_prefix = "dust_extinction_curve"
         fig, axs = plt.subplots(figsize=(8, 8), nrows=2, ncols=1)
         axs = axs.ravel()
