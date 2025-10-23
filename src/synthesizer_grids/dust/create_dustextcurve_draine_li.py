@@ -4,10 +4,15 @@ Create dust extinction curves from Draine optical properties.
 
 Parse Draine Sil_81.gz, Gra_81.gz, PAHion_30.gz, PAHneu_30.gz files,
 construct grain-size distributions (either MRN or the custom lognormal form)
-and compute extinction cross-sections (sigma).
+and compute A(lam)/NH (units of mag cm^2 per H).
 
 Currently this is done only for 2 binsizes (small and large) for silicate
 and graphite, and 1 bin for PAHs (ionized and neutral).
+
+The grid can be coupled with simulations having two bins of grain
+size distribution to generate self-consistent extinction curves
+using the dust-to-gas ratio along each line-of-sight for the
+dust grain compoenent.
 """
 
 import argparse
@@ -331,6 +336,8 @@ def calculate_Alam_over_NH(
 
     Nwav = wav_micron.size
     Alam_by_N_H = np.zeros(Nwav, dtype=float)
+    # Fallback for older numpy
+    _trapz = getattr(np, "trapezoid", np.trapz)
     for iw in range(Nwav):
         q = Qext[iw, :]
         f_lin = interp1d(radii_micron, q, bounds_error=False, fill_value=0)
@@ -339,7 +346,7 @@ def calculate_Alam_over_NH(
         # da in cm, Q is unitless)
         integrand = math.pi * (a_grid_cm**2) * q_interp * n_a
         # In units of mag cm^2
-        Alam_by_N_H[iw] = prefac * np.trapezoid(integrand, a_grid_cm)
+        Alam_by_N_H[iw] = prefac * _trapz(integrand, a_grid_cm)
 
     return Alam_by_N_H
 
@@ -875,7 +882,7 @@ if __name__ == "__main__":
         key=f"{key}/graphite_small",
         data=Alam_g_small * cm**2,
         description="""Extinction curve A(lam)/N_H for
-        graphite smallgrain component, technically in
+        graphite small grain component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
@@ -883,7 +890,7 @@ if __name__ == "__main__":
         key=f"{key}/graphite_large",
         data=Alam_g_large * cm**2,
         description="""Extinction curve A(lam)/N_H for
-        graphite smallgrain component, technically in
+        graphite large grain component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
@@ -891,7 +898,7 @@ if __name__ == "__main__":
         key=f"{key}/silicate_small",
         data=Alam_s_small * cm**2,
         description="""Extinction curve A(lam)/N_H for
-        graphite smallgrain component, technically in
+        silicate small grain component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
@@ -899,7 +906,7 @@ if __name__ == "__main__":
         key=f"{key}/silicate_large",
         data=Alam_s_large * cm**2,
         description="""Extinction curve A(lam)/N_H for
-        graphite smallgrain component, technically in
+        silicate large grain component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
@@ -908,7 +915,7 @@ if __name__ == "__main__":
         key=f"{key}/pah_ionised",
         data=Alam_pahion * cm**2,
         description="""Extinction curve A(lam)/N_H for
-        graphite smallgrain component, technically in
+        ionised PAH grain component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
@@ -916,7 +923,7 @@ if __name__ == "__main__":
         key=f"{key}/pah_neutral",
         data=Alam_pahneu * cm**2,
         description="""Extinction curve A(lam)/N_H for
-        graphite smallgrain component, technically in
+        neutral PAH grain component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
