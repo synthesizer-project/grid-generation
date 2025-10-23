@@ -10,24 +10,28 @@ Currently this is done only for 2 binsizes (small and large) for silicate
 and graphite, and 1 bin for PAHs (ionized and neutral).
 """
 
-import io
-import gzip
-import math
 import argparse
+import gzip
+import io
+import math
 from pathlib import Path
-from typing import List, Tuple, Optional
-from numpy.typing import NDArray
-from datetime import date
+from typing import List, Optional, Tuple
 
-import numpy as np
-from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
+import numpy as np
 import requests
-import h5py
-
+from matplotlib.axes import Axes
+from numpy.typing import NDArray
+from scipy.interpolate import interp1d
 from synthesizer.emission_models.attenuation import Calzetti2000, GrainsWD01
-from unyt import Angstrom, um
+from unyt import (
+    Angstrom,
+    cm,
+    dimensionless,
+    um,
+)
+
+from synthesizer_grids.grid_io import GridFile
 
 
 def download_bytes(url: str, timeout: float = 30.0) -> bytes:
@@ -75,7 +79,8 @@ def parse_draine_file_lines(
 ) -> Tuple[NDArray, NDArray, NDArray, NDArray, NDArray]:
     """
     Parse Draine optical property file (e.g., Sil_81.txt) and extract
-    radius grid (micron), wavelength grid (micron), and Qext, Qabs, Qsca arrays.
+    radius grid (micron), wavelength grid (micron), and Qext, Qabs,
+    Qsca arrays.
 
     Args:
         filename (string)
@@ -125,7 +130,9 @@ def parse_draine_file_lines(
                     pass
     if NRAD is None or NWAV is None:
         raise RuntimeError(
-            "Failed to find NRAD (number of radii) or NWAV (number of wavelength) in header. Inspect file header manually, and retry."
+            "Failed to find NRAD (number of radii) or"
+            "NWAV (number of wavelength) in header."
+            "Inspect file header manually, and retry."
         )
 
     print(f"NRAD = {NRAD}, NWAV = {NWAV}, amin ={a_min}, amax={a_max}")
@@ -305,7 +312,8 @@ def calculate_Alam_over_NH(
         radii_micron (NDArray)
             radius grid (micron) corresponding to Qext
         Qext (NDArray)
-            extinction efficiency array, shape (len(wav_micron), len(radii_micron))
+            extinction efficiency array, shape (len(wav_micron),
+            len(radii_micron))
         a_grid_micron (NDArray)
             radius grid (micron) where n(a) is defined
         n_a (NDArray)
@@ -342,19 +350,22 @@ def interp_Q_to_grid(
     Q_orig: NDArray,
     wav_target: NDArray,
 ) -> NDArray:
-    """Interpolate Qext (or Qabs, Qsca) from original wavelength grid to target wavelength grid.
+    """Interpolate Qext (or Qabs, Qsca) from original wavelength
+    grid to target wavelength grid.
     Args:
         wav_orig (NDArray)
             original wavelength grid (micron)
         radii_orig (NDArray)
             original radius grid (micron)
         Q_orig (NDArray)
-            original Q array, shape (len(wav_orig), len(radii_orig))
+            original Q array, shape (len(wav_orig),
+            len(radii_orig))
         wav_target (NDArray)
             target wavelength grid (micron)
     Returns:
         Qw (NDArray)
-            interpolated Q array on target wavelength grid, shape (len(wav_target), len(radii_orig))
+            interpolated Q array on target wavelength grid,
+            shape (len(wav_target), len(radii_orig))
     """
     Nr = radii_orig.size
     Qw = np.zeros((wav_target.size, Nr))
@@ -418,7 +429,8 @@ def plot_extinction_curve(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Build extinction curves from Draine optical files with MRN or lognormal-size components."
+        description="""Build extinction curves from Draine
+        optical files with MRN or lognormal-size components."""
     )
     parser.add_argument(
         "--mode",
@@ -561,9 +573,6 @@ if __name__ == "__main__":
     a_grid_int = np.logspace(
         math.log10(A_INT_MIN), math.log10(A_INT_MAX), N_A_INT, endpoint=True
     )
-
-    # V wavelength for A(V)
-    V_WAVELENGTH = 0.55  # micron
 
     # Download and process files
     if Path(saveSIL).exists():
@@ -813,11 +822,9 @@ if __name__ == "__main__":
         if v is not None and avoid not in k.lower() and "plot" not in k.lower()
     }
 
-    header = []
+    header = {}
     for key, value in filtered_args.items():
-        header.append(f"{key}: {value}")
-    header = "\n".join(header)
-    print("Header:", header)
+        header[key] = value
 
     grid_name = (
         f"{args.grid_name}_{args.mode}"
@@ -829,66 +836,96 @@ if __name__ == "__main__":
     # Ensure output directory exists
     Path(args.grid_loc).mkdir(parents=True, exist_ok=True)
 
-    with h5py.File(f"{args.grid_loc}/{grid_name}.hdf5", "w") as hf:
-        hf.attrs["Header"] = header
+    # Create GridFile to store outputs
+    out_grid = GridFile(f"{args.grid_loc}/{grid_name}.hdf5")
 
-        hf.attrs["date_created"] = str(date.today())
+    model = {
+        "model_name": "Draine & Li dust extinction curves",
+        "grains": "Graphite, Silicates, PAH",
+        "grain bins": 2,
+        "url": "https://www.astro.princeton.edu/~draine/dust/dust.diel.html",
+    }
+    model.update(header)
 
-        hf.attrs["axes"] = ["DTG"]
-        axes = hf.create_group("axes")
-        axes["DTG"] = dtg_grid
-        axes["DTG"].attrs["Description"] = (
-            "Dust-to-gas mass ratio of the species"
-        )
-        axes["DTG"].attrs["Units"] = "dimensionless"
+    print(model)
 
-        hf.create_group("extinction_curves")
-        ext_curves = hf["extinction_curves"]
-        ext_curves["wavelength"] = all_wav
-        ext_curves["wavelength"].attrs["Description"] = (
-            "Wavelength grid for extinction curves"
-        )
-        ext_curves["wavelength"].attrs["Units"] = "um"
+    # Write the model metadata
+    out_grid.write_model_metadata(model)
 
-        ext_curves["silicate_small"] = Alam_s_small
-        ext_curves["silicate_small"].attrs["Description"] = (
-            "Extinction curve A(lam)/N_H for silicate small grain component"
-        )
-        ext_curves["silicate_small"].attrs["Units"] = "mag cm^2"
+    # Write axes information
+    out_grid.write_attribute("/", "axes", "dtg")
+    dtg_description = "Dust-to-Gas ratio of the grid"
+    out_grid.write_dataset(
+        "axes/dtg",
+        dtg_grid * dimensionless,
+        description=dtg_description,
+        log_on_read=True,
+    )
 
-        ext_curves["silicate_large"] = Alam_s_large
-        ext_curves["silicate_large"].attrs["Description"] = (
-            "Extinction curve A(lam)/N_H for silicate large grain component"
-        )
-        ext_curves["silicate_large"].attrs["Units"] = "mag cm^2"
+    # Write out the extinction curves and their wavelengths
+    # They are A(lam)/NH
+    key = "extinction_curves"
+    out_grid.write_dataset(
+        key=f"{key}/wavelength",
+        data=all_wav * um,
+        description="Wavelength of the extinction curve grid",
+        log_on_read=False,
+    )
+    out_grid.write_dataset(
+        key=f"{key}/graphite_small",
+        data=Alam_g_small * cm**2,
+        description="""Extinction curve A(lam)/N_H for
+        graphite smallgrain component, technically in
+        units of mag cm^2 per H nucleus""",
+        log_on_read=False,
+    )
+    out_grid.write_dataset(
+        key=f"{key}/graphite_large",
+        data=Alam_g_large * cm**2,
+        description="""Extinction curve A(lam)/N_H for
+        graphite smallgrain component, technically in
+        units of mag cm^2 per H nucleus""",
+        log_on_read=False,
+    )
+    out_grid.write_dataset(
+        key=f"{key}/silicate_small",
+        data=Alam_s_small * cm**2,
+        description="""Extinction curve A(lam)/N_H for
+        graphite smallgrain component, technically in
+        units of mag cm^2 per H nucleus""",
+        log_on_read=False,
+    )
+    out_grid.write_dataset(
+        key=f"{key}/silicate_large",
+        data=Alam_s_large * cm**2,
+        description="""Extinction curve A(lam)/N_H for
+        graphite smallgrain component, technically in
+        units of mag cm^2 per H nucleus""",
+        log_on_read=False,
+    )
 
-        ext_curves["graphite_small"] = Alam_g_small
-        ext_curves["graphite_small"].attrs["Description"] = (
-            "Extinction curve A(lam)/N_H for graphite small grain component"
-        )
-        ext_curves["graphite_small"].attrs["Units"] = "mag cm^2"
+    out_grid.write_dataset(
+        key=f"{key}/pah_ionised",
+        data=Alam_pahion * cm**2,
+        description="""Extinction curve A(lam)/N_H for
+        graphite smallgrain component, technically in
+        units of mag cm^2 per H nucleus""",
+        log_on_read=False,
+    )
+    out_grid.write_dataset(
+        key=f"{key}/pah_neutral",
+        data=Alam_pahneu * cm**2,
+        description="""Extinction curve A(lam)/N_H for
+        graphite smallgrain component, technically in
+        units of mag cm^2 per H nucleus""",
+        log_on_read=False,
+    )
 
-        ext_curves["graphite_large"] = Alam_g_large
-        ext_curves["graphite_large"].attrs["Description"] = (
-            "Extinction curve A(lam)/N_H for graphite large grain component"
-        )
-        ext_curves["graphite_large"].attrs["Units"] = "mag cm^2"
-
-        ext_curves["pah_ionized"] = Alam_pahion
-        ext_curves["pah_ionized"].attrs["Description"] = (
-            "Extinction curve A(lam)/N_H for PAH ionized component"
-        )
-        ext_curves["pah_ionized"].attrs["Units"] = "mag cm^2"
-
-        ext_curves["pah_neutral"] = Alam_pahneu
-        ext_curves["pah_neutral"].attrs["Description"] = (
-            "Extinction curve A(lam)/N_H for PAH neutral component"
-        )
-        ext_curves["pah_neutral"].attrs["Units"] = "mag cm^2"
-
-    print(f"Saved extinction curve grid to {args.grid_loc}/{grid_name}.hdf5")
+    print(f"Saved extinction curve grid to:{args.grid_loc}/{grid_name}.hdf5")
 
     if args.plot_example:
+        # V wavelength for A(V)
+        V_WAVELENGTH = 0.55  # micron
         # Plot example extinction curves for specific DTG values
         iv = np.argmin(np.abs(all_wav - V_WAVELENGTH))
 
@@ -967,9 +1004,9 @@ if __name__ == "__main__":
         axs[1].grid(which="both", ls="--", alpha=0.4)
         axs[1].legend(fontsize=11, ncol=2)
 
-        fig.suptitle(
-            f"Extinction ({args.mode}) — sil DTG={DTG_sil:.3g}, gra DTG={DTG_gra:.3g}, PAH DTG={DTG_PAH:.3g}"
-        )
+        title = f"""Extinction ({args.mode}) — sil DTG={DTG_sil:.3g},
+        gra DTG={DTG_gra:.3g}, PAH DTG={DTG_PAH:.3g}"""
+        fig.suptitle(title)
 
         plt.tight_layout()
         png_name = f"{out_prefix}_{args.mode}.png"
