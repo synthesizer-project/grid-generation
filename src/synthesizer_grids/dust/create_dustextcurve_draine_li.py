@@ -332,7 +332,7 @@ def calculate_Alam_over_NH(
     micron_to_cm = (1.0 * um).to("cm").value  # 1e-4
     a_grid_cm = a_grid_micron * micron_to_cm
 
-    prefac = 2.5 * np.log(np.e)
+    prefac = 2.5 * np.log10(np.e)
 
     Nwav = wav_micron.size
     Alam_by_N_H = np.zeros(Nwav, dtype=float)
