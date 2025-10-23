@@ -423,7 +423,6 @@ def plot_extinction_curve(
             ls=":",
             label=f"{c}",
         )
-    curve_wd01 = GrainsWD01(model="MW")
     ax.set_xlabel("Wavelength (AA)", fontsize=12)
     ax.set_ylabel(r"A($\lambda$) / A(V)", fontsize=12)
     ax.set_xlim(800, 1e4)
