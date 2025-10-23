@@ -587,7 +587,7 @@ if __name__ == "__main__":
         )
     else:
         sil_bytes = download_bytes(SIL_URL)
-        sil_lines = read_gz_lines(sil_bytes, savename=saveSIL)
+        read_gz_lines(sil_bytes, savename=saveSIL)
         radii_sil, wav_sil, Qext_sil, Qabs_sil, Qsca_sil = (
             parse_draine_file_lines(saveSIL)
         )
@@ -598,7 +598,7 @@ if __name__ == "__main__":
         )
     else:
         gra_bytes = download_bytes(GRA_URL)
-        gra_lines = read_gz_lines(gra_bytes, savename=saveGRA)
+        read_gz_lines(gra_bytes, savename=saveGRA)
         radii_gra, wav_gra, Qext_gra, Qabs_gra, Qsca_gra = (
             parse_draine_file_lines(saveGRA)
         )
@@ -613,7 +613,7 @@ if __name__ == "__main__":
         ) = parse_draine_file_lines(savePAHion)
     else:
         pah_ion_bytes = download_bytes(PAH_ion)
-        pah_ion_lines = read_gz_lines(pah_ion_bytes, savename=savePAHion)
+        read_gz_lines(pah_ion_bytes, savename=savePAHion)
         (
             radii_pah_ion,
             wav_pah_ion,
@@ -632,7 +632,7 @@ if __name__ == "__main__":
         ) = parse_draine_file_lines(savePAHneu)
     else:
         pah_neu_bytes = download_bytes(PAH_neu)
-        pah_neu_lines = read_gz_lines(pah_neu_bytes, savename=savePAHneu)
+        read_gz_lines(pah_neu_bytes, savename=savePAHneu)
         (
             radii_pah_neu,
             wav_pah_neu,
@@ -859,7 +859,7 @@ if __name__ == "__main__":
     out_grid.write_model_metadata(model)
 
     # Write axes information
-    out_grid.write_attribute("/", "axes", "dtg")
+    out_grid.write_attribute("/", "axes", ["dtg"])
     dtg_description = "Dust-to-Gas ratio of the grid"
     out_grid.write_dataset(
         "axes/dtg",
