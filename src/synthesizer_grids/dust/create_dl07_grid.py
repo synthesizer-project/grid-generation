@@ -171,7 +171,7 @@ def process_dl07_to_hdf5(
                 for kk, alpha in enumerate(alphas):
                     fname = (
                         f"{data_loc}/U{umin}_{umaxs[0]}_{data_name}_"
-                        + f"{suffix[ii]}/spec_{np.round(alpha,2)}.dat"
+                        + f"{suffix[ii]}/spec_{np.round(alpha, 2)}.dat"
                     )
                     with open(f"{fname}") as f:
                         tmp = f.readlines()
