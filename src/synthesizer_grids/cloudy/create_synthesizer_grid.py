@@ -66,6 +66,12 @@ pluralisation_of_axes = {
     "stop_column_density": "column_densities",
     "alpha_enhancement": "alpha_enhancements",
     "reference_ionisation_parameter": "reference_ionisation_parameters",
+    "abundance_scalings.nitrogen_to_oxygen": (
+        "abundance_scalings.nitrogen_to_oxygen"
+    ),
+    "abundance_scalings.carbon_to_oxygen": (
+        "abundance_scalings.carbon_to_oxygen"
+    ),
 }
 
 
@@ -103,7 +109,6 @@ def create_empty_grid(
     incident_grid = Grid(
         incident_grid_name,
         grid_dir=grid_dir,
-        read_lines=False,
     )
 
     # Make the new grid
@@ -662,14 +667,14 @@ def add_lines(
     lines["luminosity"] = np.empty((*new_shape, nlines))
 
     # ... but only save continuum values if spectra are provided.
-    if calculate_continuum:
-        continuum_quantities = [
-            "transmitted",
-            "incident",
-            "nebular_continuum",
-            "total_continuum",
-        ]
+    continuum_quantities = [
+        "transmitted",
+        "incident",
+        "nebular_continuum",
+        "total_continuum",
+    ]
 
+    if calculate_continuum:
         spectra_ = {}
 
         # Calculate incideted_contiuum
@@ -692,6 +697,13 @@ def add_lines(
         # Define output arrays
         for continuum_quantity in continuum_quantities:
             lines[continuum_quantity] = np.empty((*new_shape, nlines))
+
+    # If we're not using spectra, we still need to create output arrays for
+    # the continuum quantities, but this time they are zeros.
+    else:
+        # Define output arrays
+        for continuum_quantity in continuum_quantities:
+            lines[continuum_quantity] = np.zeros((*new_shape, nlines))
 
     # Array for recording cloudy failures
     failures = np.zeros(new_shape)
@@ -779,9 +791,8 @@ def add_lines(
     lines["luminosity"] *= erg / s
 
     # If continuum values are calculated add units
-    if calculate_continuum:
-        for continuum_quantity in continuum_quantities:
-            lines[continuum_quantity] *= erg / s / Hz
+    for continuum_quantity in continuum_quantities:
+        lines[continuum_quantity] *= erg / s / Hz
 
     # Write the lines out
     new_grid.write_lines(
@@ -825,7 +836,7 @@ if __name__ == "__main__":
         "--include-spectra",
         action="store_true",
         help="Should the spectra be included in the grid?",
-        default=True,
+        default=False,
         required=False,
     )
 
@@ -902,7 +913,6 @@ if __name__ == "__main__":
     incident_grid = Grid(
         incident_grid_name,
         grid_dir=grid_dir,
-        read_lines=False,
     )
 
     # Extract axes and axes values from the Grid
