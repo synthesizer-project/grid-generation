@@ -178,4 +178,5 @@ if __name__ == "__main__":
 
         # Run the cloudy job
         command = f"{cloudy_executable} -r {photoionisation_index}"
+        print(command)
         os.system(command)
