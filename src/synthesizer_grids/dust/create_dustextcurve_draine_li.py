@@ -140,6 +140,7 @@ def parse_draine_file_lines(
             "Inspect file header manually, and retry."
         )
 
+    print(f"Parsing {filename}:")
     print(f"NRAD = {NRAD}, NWAV = {NWAV}, amin ={a_min}, amax={a_max}")
 
     skip_ftr = 3  # lines to skip after NWAV line (usually 3)
@@ -878,51 +879,57 @@ if __name__ == "__main__":
         log_on_read=False,
     )
     out_grid.write_dataset(
-        key=f"{key}/graphite_small",
+        key=f"{key}/graphite_a{args.small_centre}um",
         data=Alam_g_small * cm**2,
-        description="""Extinction curve A(lam)/N_H for
-        graphite small grain component, technically in
+        description=f"""Extinction curve A(lam)/N_H for
+        graphite small (bin centre {str(args.small_centre)} um)
+        grain component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
     out_grid.write_dataset(
-        key=f"{key}/graphite_large",
+        key=f"{key}/graphite_a{args.large_centre}um",
         data=Alam_g_large * cm**2,
-        description="""Extinction curve A(lam)/N_H for
-        graphite large grain component, technically in
+        description=f"""Extinction curve A(lam)/N_H for
+        graphite large (bin centre {str(args.large_centre)} um)
+        grain component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
     out_grid.write_dataset(
-        key=f"{key}/silicate_small",
+        key=f"{key}/silicate_a{args.small_centre}um",
         data=Alam_s_small * cm**2,
-        description="""Extinction curve A(lam)/N_H for
-        silicate small grain component, technically in
+        description=f"""Extinction curve A(lam)/N_H for
+        silicate small (bin centre {str(args.small_centre)} um)
+        grain component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
     out_grid.write_dataset(
-        key=f"{key}/silicate_large",
+        key=f"{key}/silicate_a{args.large_centre}um",
         data=Alam_s_large * cm**2,
-        description="""Extinction curve A(lam)/N_H for
-        silicate large grain component, technically in
+        description=f"""Extinction curve A(lam)/N_H for
+        silicate large (bin centre {str(args.large_centre)} um)
+        grain component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
 
     out_grid.write_dataset(
-        key=f"{key}/pah_ionised",
+        key=f"{key}/pahionised_a{str(args.pah_centre)}um",
         data=Alam_pahion * cm**2,
-        description="""Extinction curve A(lam)/N_H for
-        ionised PAH grain component, technically in
+        description=f"""Extinction curve A(lam)/N_H for
+        ionised PAH grain (bin centre {str(args.pah_centre)} um)
+        component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
     out_grid.write_dataset(
-        key=f"{key}/pah_neutral",
+        key=f"{key}/pahneutral_a{str(args.pah_centre)}um",
         data=Alam_pahneu * cm**2,
-        description="""Extinction curve A(lam)/N_H for
-        neutral PAH grain component, technically in
+        description=f"""Extinction curve A(lam)/N_H for
+        neutral PAH grain (bin centre {str(args.pah_centre)} um)
+        component, technically in
         units of mag cm^2 per H nucleus""",
         log_on_read=False,
     )
