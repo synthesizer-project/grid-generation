@@ -103,7 +103,7 @@ def create_empty_grid(
     incident_grid = Grid(
         incident_grid_name,
         grid_dir=grid_dir,
-        read_lines=False,
+        ignore_lines=True,
     )
 
     # Make the new grid
@@ -902,7 +902,7 @@ if __name__ == "__main__":
     incident_grid = Grid(
         incident_grid_name,
         grid_dir=grid_dir,
-        read_lines=False,
+        ignore_lines=True,
     )
 
     # Extract axes and axes values from the Grid
