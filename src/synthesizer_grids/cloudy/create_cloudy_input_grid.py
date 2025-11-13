@@ -13,6 +13,7 @@ import numpy as np
 import yaml
 from synthesizer.abundances import (
     Abundances,
+    depletion_models
 )
 from synthesizer.exceptions import InconsistentParameter
 from synthesizer.grid import Grid
@@ -69,8 +70,8 @@ def create_cloudy_input(
         reference=parameters["reference_abundance"],
         alpha=parameters["alpha_enhancement"],
         abundances=parameters["abundance_scalings"],
-        depletion_model=parameters["depletion_model"],
-        depletion_scale=parameters["depletion_scale"],
+        depletion_model=depletion_models.Gutkin2016(),  # parameters["depletion_model"],
+        # depletion_scale=parameters["depletion_scale"],  # TODO: broken, needs fixing
     )
 
     # Define the ionisation parameter and geometry
@@ -143,7 +144,7 @@ def create_cloudy_input(
     shape_commands = ['table SED "input.sed" \n']
 
     # Create cloudy input file
-    cloudy.create_cloudy_input(
+    cloudy23.create_cloudy_input(
         str(photoionisation_index),
         shape_commands,
         abundances,
