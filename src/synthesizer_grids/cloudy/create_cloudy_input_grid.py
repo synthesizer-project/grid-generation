@@ -69,7 +69,7 @@ def create_cloudy_input(
         metallicity=float(parameters["metallicities"]),
         reference=parameters["reference_abundance"],
         alpha=parameters["alpha_enhancement"],
-        abundances=parameters["abundance_scalings"],
+        abundances=parameters["abundance_scalings"] if parameters["abundance_scalings"] else None,
         depletion_model=depletion_models.Gutkin2016(),  # parameters["depletion_model"],
         # depletion_scale=parameters["depletion_scale"],  # TODO: broken, needs fixing
     )
