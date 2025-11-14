@@ -51,16 +51,23 @@ def parse_sobol_params(params, incident_grid):
         min_val = float(np.min(axis_values))
         max_val = float(np.max(axis_values))
         # Default to log scale for ages and metallicities
-        scale = "log" if axis in ["ages", "age", "metallicities", "metallicity"] else "linear"
+        scale = (
+            "log"
+            if axis in ["ages", "age", "metallicities", "metallicity"]
+            else "linear"
+        )
         incident_params[axis] = (min_val, max_val, scale)
 
     for key, value in params.items():
         # Check if this is an incident grid parameter
-        # Handle both singular (age, metallicity) and plural (ages, metallicities)
+        # Handle both singular (age, metallicity) and plural
+        # (ages, metallicities)
         is_incident = False
         incident_key = None
 
-        if key in ["age", "ages"] and ("ages" in incident_axes or "age" in incident_axes):
+        if key in ["age", "ages"] and (
+            "ages" in incident_axes or "age" in incident_axes
+        ):
             is_incident = True
             incident_key = "ages" if "ages" in incident_axes else "age"
         elif key in ["metallicity", "metallicities"] and (
@@ -68,7 +75,9 @@ def parse_sobol_params(params, incident_grid):
         ):
             is_incident = True
             incident_key = (
-                "metallicities" if "metallicities" in incident_axes else "metallicity"
+                "metallicities"
+                if "metallicities" in incident_axes
+                else "metallicity"
             )
 
         # Parse parameter value
@@ -101,13 +110,17 @@ def parse_sobol_params(params, incident_grid):
     return incident_params, photoionisation_params, fixed_params
 
 
-def generate_sobol_samples(incident_params, photoionisation_params, n_samples, seed=None):
+def generate_sobol_samples(
+    incident_params, photoionisation_params, n_samples, seed=None
+):
     """
     Generate Sobol sequence samples for all parameters.
 
     Args:
-        incident_params (dict): Incident grid parameters with (min, max, scale)
-        photoionisation_params (dict): Photoionization parameters with (min, max, scale)
+        incident_params (dict): Incident grid parameters with
+            (min, max, scale)
+        photoionisation_params (dict): Photoionization parameters with
+            (min, max, scale)
         n_samples (int): Number of samples
         seed (int, optional): Random seed
 
@@ -135,7 +148,9 @@ def generate_sobol_samples(incident_params, photoionisation_params, n_samples, s
             if scale == "log":
                 log_min = np.log10(min_val)
                 log_max = np.log10(max_val)
-                value = 10 ** (log_min + unit_samples[i, j] * (log_max - log_min))
+                value = 10 ** (
+                    log_min + unit_samples[i, j] * (log_max - log_min)
+                )
             elif scale == "linear":
                 value = min_val + unit_samples[i, j] * (max_val - min_val)
             else:
@@ -147,10 +162,12 @@ def generate_sobol_samples(incident_params, photoionisation_params, n_samples, s
     # Split into incident and photoionization samples
     incident_param_names = set(incident_params.keys())
     incident_samples = [
-        {k: v for k, v in s.items() if k in incident_param_names} for s in samples
+        {k: v for k, v in s.items() if k in incident_param_names}
+        for s in samples
     ]
     photoionisation_samples = [
-        {k: v for k, v in s.items() if k not in incident_param_names} for s in samples
+        {k: v for k, v in s.items() if k not in incident_param_names}
+        for s in samples
     ]
 
     return incident_samples, photoionisation_samples
@@ -276,7 +293,8 @@ if __name__ == "__main__":
     # Save grid parameters
     parameters_to_save = {
         "incident_n_models": int(n_samples),
-        "photoionisation_n_models": 1,  # Single photoionization model per incident
+        # Single photoionization model per incident
+        "photoionisation_n_models": 1,
         "total_n_models": int(n_samples),
         "sampling_method": "sobol",
         "seed": seed,
@@ -338,9 +356,14 @@ if __name__ == "__main__":
     lam = incident_grid.lam
 
     # Extract sampled ages and metallicities for Stars object
-    ages_array = np.array([s.get("ages", s.get("age", None)) for s in incident_samples])
+    ages_array = np.array(
+        [s.get("ages", s.get("age", None)) for s in incident_samples]
+    )
     metallicities_array = np.array(
-        [s.get("metallicities", s.get("metallicity", None)) for s in incident_samples]
+        [
+            s.get("metallicities", s.get("metallicity", None))
+            for s in incident_samples
+        ]
     )
 
     # Create Stars object for spectral interpolation
@@ -358,7 +381,9 @@ if __name__ == "__main__":
 
     with h5py.File(grid_hdf5_file, "a") as hf:
         hf.create_dataset("incident_lam", data=lam, compression="gzip")
-        hf.create_dataset("incident_lnu", data=spec.lnu.value, compression="gzip")
+        hf.create_dataset(
+            "incident_lnu", data=spec.lnu.value, compression="gzip"
+        )
 
     # Handle reference ionisation parameter if needed
     if fixed_params.get("ionisation_parameter_model") == "ref":
@@ -368,7 +393,8 @@ if __name__ == "__main__":
 
         if ref_age is None or ref_met is None:
             raise ValueError(
-                "reference_age and reference_metallicity required for 'ref' model"
+                "reference_age and reference_metallicity required for "
+                "'ref' model"
             )
 
         # Get reference grid point
@@ -404,7 +430,9 @@ if __name__ == "__main__":
     # Save ionisation parameter scaling if needed (for on-the-fly generation)
     if fixed_params.get("ionisation_parameter_model") == "ref":
         with h5py.File(grid_hdf5_file, "a") as hf:
-            hf.attrs["reference_log10_specific_ionising_lum"] = reference_log10_specific_ionising_lum
+            hf.attrs["reference_log10_specific_ionising_lum"] = (
+                reference_log10_specific_ionising_lum
+            )
             hf.create_dataset(
                 "log10Q_samples",
                 data=log10Q_samples,
@@ -415,7 +443,7 @@ if __name__ == "__main__":
     shutil.copyfile(linelist_name, f"{output_directory}/{linelist_name}")
 
     print(f"\nSaved parameter grid and incident spectra to {grid_hdf5_file}")
-    print(f"Cloudy input files will be generated on-the-fly during execution")
+    print("Cloudy input files will be generated on-the-fly during execution")
     print(f"Output directory: {output_directory}")
 
     # Generate submission script (on-the-fly version)

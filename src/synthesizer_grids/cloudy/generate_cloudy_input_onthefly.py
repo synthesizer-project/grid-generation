@@ -12,10 +12,9 @@ from pathlib import Path
 import h5py
 import numpy as np
 import yaml
-from synthesizer.photoionisation import cloudy17, cloudy23
-from unyt import Angstrom, erg, Hz, s
-
 from create_cloudy_input_grid import create_cloudy_input
+from synthesizer.photoionisation import cloudy17, cloudy23
+from unyt import Angstrom, Hz, erg, s
 
 
 def generate_input_for_index(grid_dir, sample_index, work_dir=None):
@@ -25,7 +24,8 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
     Args:
         grid_dir (str): Directory containing the HDF5 grid file
         sample_index (int): Index of the sample to generate
-        work_dir (str): Working directory for temporary files (default: {grid_dir}/{sample_index})
+        work_dir (str): Working directory for temporary files
+            (default: {grid_dir}/{sample_index})
 
     Returns:
         str: Path to the working directory
@@ -40,7 +40,6 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
         raise ValueError(f"Multiple HDF5 files found in {grid_dir}")
 
     grid_file = hdf5_files[0]
-    grid_name = grid_dir.name
 
     # Load grid parameters
     param_file = grid_dir / "grid_parameters.yaml"
@@ -76,10 +75,17 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
         # Get fixed parameters from attributes
         fixed_params = {}
         for key in hf.attrs.keys():
-            if key not in ["n_samples", "sampling_method", "seed", "n_wavelength", "spec_names"]:
+            if key not in [
+                "n_samples",
+                "sampling_method",
+                "seed",
+                "n_wavelength",
+                "spec_names",
+            ]:
                 value = hf.attrs[key]
                 if isinstance(value, bytes):
                     import json
+
                     fixed_params[key] = json.loads(value.decode())
                 else:
                     fixed_params[key] = value
@@ -118,7 +124,8 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
     parameters = {**sample_params, **fixed_params}
 
     # Create Cloudy input file
-    # create_cloudy_input expects {output_directory}/{incident_index}/{photoionisation_index}.in
+    # create_cloudy_input expects:
+    # {output_directory}/{incident_index}/{photoionisation_index}.in
     # We want files in work_dir, so structure accordingly
     temp_parent = work_dir.parent
     temp_incident_name = work_dir.name
@@ -131,6 +138,7 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
 
     # Change to work_dir so create_cloudy_input can find linelist
     import os
+
     original_dir = os.getcwd()
     os.chdir(temp_parent)
 
@@ -172,10 +180,13 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default=None,
-        help="Working directory for temporary files (default: {grid_dir}/{sample_index})",
+        help="Working directory for temporary files "
+        "(default: {grid_dir}/{sample_index})",
     )
 
     args = parser.parse_args()
 
-    work_dir = generate_input_for_index(args.grid_dir, args.sample_index, args.work_dir)
+    work_dir = generate_input_for_index(
+        args.grid_dir, args.sample_index, args.work_dir
+    )
     print(f"Created Cloudy input files in {work_dir}")

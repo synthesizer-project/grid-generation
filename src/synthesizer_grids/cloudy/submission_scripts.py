@@ -237,7 +237,9 @@ def cosma7_sobol(
         n_array_jobs = min(stride_step, n_samples)
         array_range = f"0-{n_array_jobs - 1}"
         # Each array job handles every stride_step-th model
-        models_per_job = (n_samples + stride_step - 1) // stride_step  # Ceiling division
+        models_per_job = (
+            n_samples + stride_step - 1
+        ) // stride_step  # Ceiling division
     else:
         array_range = f"0-{n_samples - 1}"
         models_per_job = 1
@@ -275,67 +277,78 @@ def cosma7_sobol(
     if mail_directives:
         script_lines.append(mail_directives)
 
-    script_lines.extend([
-        "#SBATCH --output=./logs/log%A_%a.out",
-        "#SBATCH --error=./logs/log%A_%a.err",
-        "",
-        f"# Grid: {new_grid_name}",
-        f"TOTAL_SAMPLES={n_samples}",
-        f"GRID_DIR=\"{grid_dir}\"",
-        f"CLOUDY_EXE=\"{cloudy_executable_path}/cloudy.exe\"",
-        "",
-        "task_id=${SLURM_ARRAY_TASK_ID}",
-        "",
-    ])
+    script_lines.extend(
+        [
+            "#SBATCH --output=./logs/log%A_%a.out",
+            "#SBATCH --error=./logs/log%A_%a.err",
+            "",
+            f"# Grid: {new_grid_name}",
+            f"TOTAL_SAMPLES={n_samples}",
+            f'GRID_DIR="{grid_dir}"',
+            f'CLOUDY_EXE="{cloudy_executable_path}/cloudy.exe"',
+            "",
+            "task_id=${SLURM_ARRAY_TASK_ID}",
+            "",
+        ]
+    )
 
     if use_striding_actual:
-        script_lines.extend([
-            f"STEP={stride_step}",
-            "",
-            "# Process samples using striding pattern",
-            "for incident_idx in $(seq $task_id $STEP $((TOTAL_SAMPLES - 1))); do",
-            '    sample_dir="$GRID_DIR/${incident_idx}"',
-            "",
-            '    if [ ! -d "$sample_dir" ]; then',
-            '        echo "Warning: Directory $sample_dir not found"',
-            "        continue",
-            "    fi",
-            "",
-            '    cd "$sample_dir"',
-            '    echo "Processing sample $incident_idx in $PWD"',
-            "",
-        ])
+        script_lines.extend(
+            [
+                f"STEP={stride_step}",
+                "",
+                "# Process samples using striding pattern",
+                "for incident_idx in $(seq $task_id $STEP "
+                "$((TOTAL_SAMPLES - 1))); do",
+                '    sample_dir="$GRID_DIR/${incident_idx}"',
+                "",
+                '    if [ ! -d "$sample_dir" ]; then',
+                '        echo "Warning: Directory $sample_dir not found"',
+                "        continue",
+                "    fi",
+                "",
+                '    cd "$sample_dir"',
+                '    echo "Processing sample $incident_idx in $PWD"',
+                "",
+            ]
+        )
     else:
-        script_lines.extend([
-            "incident_idx=$task_id",
-            'sample_dir="$GRID_DIR/${incident_idx}"',
-            "",
-            'if [ ! -d "$sample_dir" ]; then',
-            '    echo "Error: Directory $sample_dir not found"',
-            "    exit 1",
-            "fi",
-            "",
-            'cd "$sample_dir"',
-            'echo "Processing sample $incident_idx in $PWD"',
-            "",
-        ])
+        script_lines.extend(
+            [
+                "incident_idx=$task_id",
+                'sample_dir="$GRID_DIR/${incident_idx}"',
+                "",
+                'if [ ! -d "$sample_dir" ]; then',
+                '    echo "Error: Directory $sample_dir not found"',
+                "    exit 1",
+                "fi",
+                "",
+                'cd "$sample_dir"',
+                'echo "Processing sample $incident_idx in $PWD"',
+                "",
+            ]
+        )
 
     # Run Cloudy models sequentially
-    no_files_action = "        continue" if use_striding_actual else "        exit 1"
-    script_lines.extend([
-        "    # Run Cloudy models sequentially",
-        '    num_files=$(ls *.in 2>/dev/null | wc -l)',
-        "",
-        '    if [ "$num_files" -eq 0 ]; then',
-        '        echo "No .in files found in $sample_dir"',
-        no_files_action,
-        "    fi",
-        "",
-        "    for model_idx in $(seq 0 $((num_files - 1))); do",
-        '        echo "Running cloudy.exe -r $model_idx"',
-        "        $CLOUDY_EXE -r $model_idx",
-        "    done",
-    ])
+    no_files_action = (
+        "        continue" if use_striding_actual else "        exit 1"
+    )
+    script_lines.extend(
+        [
+            "    # Run Cloudy models sequentially",
+            "    num_files=$(ls *.in 2>/dev/null | wc -l)",
+            "",
+            '    if [ "$num_files" -eq 0 ]; then',
+            '        echo "No .in files found in $sample_dir"',
+            no_files_action,
+            "    fi",
+            "",
+            "    for model_idx in $(seq 0 $((num_files - 1))); do",
+            '        echo "Running cloudy.exe -r $model_idx"',
+            "        $CLOUDY_EXE -r $model_idx",
+            "    done",
+        ]
+    )
 
     if use_striding_actual:
         script_lines.append("done")
@@ -365,8 +378,9 @@ def cosma7_sobol_onthefly(
     mail_user=None,
 ):
     """
-    Create COSMA7 SLURM script for Sobol grids with on-the-fly input generation.
-    Generates inputs, runs Cloudy, extracts spectra, and cleans up.
+    Create COSMA7 SLURM script for Sobol grids with on-the-fly input
+    generation. Generates inputs, runs Cloudy, extracts spectra, and
+    cleans up.
     """
     from pathlib import Path
 
@@ -411,19 +425,21 @@ def cosma7_sobol_onthefly(
     if mail_directives:
         script_lines.append(mail_directives)
 
-    script_lines.extend([
-        "#SBATCH --output=./logs/log%A_%a.out",
-        "#SBATCH --error=./logs/log%A_%a.err",
-        "",
-        f"TOTAL_SAMPLES={n_samples}",
-        f"GRID_DIR=\"{grid_dir}\"",
-        f"CLOUDY_EXE=\"{cloudy_executable_path}/cloudy.exe\"",
-        f"SCRIPT_DIR=\"{script_dir}\"",
-        "",
-        "# Create spectra output directory",
-        'mkdir -p "$GRID_DIR/spectra"',
-        "",
-    ])
+    script_lines.extend(
+        [
+            "#SBATCH --output=./logs/log%A_%a.out",
+            "#SBATCH --error=./logs/log%A_%a.err",
+            "",
+            f"TOTAL_SAMPLES={n_samples}",
+            f'GRID_DIR="{grid_dir}"',
+            f'CLOUDY_EXE="{cloudy_executable_path}/cloudy.exe"',
+            f'SCRIPT_DIR="{script_dir}"',
+            "",
+            "# Create spectra output directory",
+            'mkdir -p "$GRID_DIR/spectra"',
+            "",
+        ]
+    )
 
     if python_env:
         script_lines.extend([f"source {python_env}/bin/activate", ""])
@@ -432,35 +448,48 @@ def cosma7_sobol_onthefly(
     script_lines.append("")
 
     if use_striding_actual:
-        script_lines.extend([
-            f"STEP={stride_step}",
-            "",
-            "for incident_idx in $(seq $task_id $STEP $((TOTAL_SAMPLES - 1))); do",
-            '    work_dir="$GRID_DIR/tmp_${incident_idx}_$$"',
-            '    mkdir -p "$work_dir"',
-            '    echo "Sample $incident_idx"',
-            '    python "$SCRIPT_DIR/generate_cloudy_input_onthefly.py" --grid-dir "$GRID_DIR" --sample-index $incident_idx --work-dir "$work_dir" || continue',
-            '    cd "$work_dir"',
-            "    $CLOUDY_EXE -r 0",
-            '    if [ $? -eq 0 ] && [ -f "0.cont" ]; then',
-            '        tail -n +2 0.cont | awk \'{print $1, $3, $4, $7}\' > "$GRID_DIR/spectra/spectra_${incident_idx}.txt"',
-            '        cd "$GRID_DIR" && rm -rf "$work_dir"',
-            "    fi",
-            "done",
-        ])
+        script_lines.extend(
+            [
+                f"STEP={stride_step}",
+                "",
+                "for incident_idx in $(seq $task_id $STEP "
+                "$((TOTAL_SAMPLES - 1))); do",
+                '    work_dir="$GRID_DIR/tmp_${incident_idx}_$$"',
+                '    mkdir -p "$work_dir"',
+                '    echo "Sample $incident_idx"',
+                '    python "$SCRIPT_DIR/generate_cloudy_input_onthefly.py" '
+                '--grid-dir "$GRID_DIR" --sample-index $incident_idx '
+                '--work-dir "$work_dir" || continue',
+                '    cd "$work_dir"',
+                "    $CLOUDY_EXE -r 0",
+                '    if [ $? -eq 0 ] && [ -f "0.cont" ]; then',
+                "        tail -n +2 0.cont | "
+                "awk '{print $1, $3, $4, $7}' > "
+                '"$GRID_DIR/spectra/spectra_${incident_idx}.txt"',
+                '        cd "$GRID_DIR" && rm -rf "$work_dir"',
+                "    fi",
+                "done",
+            ]
+        )
     else:
-        script_lines.extend([
-            "incident_idx=$task_id",
-            'work_dir="$GRID_DIR/tmp_${incident_idx}_$$"',
-            'mkdir -p "$work_dir"',
-            'python "$SCRIPT_DIR/generate_cloudy_input_onthefly.py" --grid-dir "$GRID_DIR" --sample-index $incident_idx --work-dir "$work_dir" || exit 1',
-            'cd "$work_dir"',
-            "$CLOUDY_EXE -r 0",
-            'if [ $? -eq 0 ] && [ -f "0.cont" ]; then',
-            '    tail -n +2 0.cont | awk \'{print $1, $3, $4, $7}\' > "$GRID_DIR/spectra/spectra_${incident_idx}.txt"',
-            '    cd "$GRID_DIR" && rm -rf "$work_dir"',
-            "fi",
-        ])
+        script_lines.extend(
+            [
+                "incident_idx=$task_id",
+                'work_dir="$GRID_DIR/tmp_${incident_idx}_$$"',
+                'mkdir -p "$work_dir"',
+                'python "$SCRIPT_DIR/generate_cloudy_input_onthefly.py" '
+                '--grid-dir "$GRID_DIR" --sample-index $incident_idx '
+                '--work-dir "$work_dir" || exit 1',
+                'cd "$work_dir"',
+                "$CLOUDY_EXE -r 0",
+                'if [ $? -eq 0 ] && [ -f "0.cont" ]; then',
+                "    tail -n +2 0.cont | "
+                "awk '{print $1, $3, $4, $7}' > "
+                '"$GRID_DIR/spectra/spectra_${incident_idx}.txt"',
+                '    cd "$GRID_DIR" && rm -rf "$work_dir"',
+                "fi",
+            ]
+        )
 
     slurm_job_script = "\n".join(script_lines) + "\n"
 
@@ -470,4 +499,3 @@ def cosma7_sobol_onthefly(
 
     print(f"Created on-the-fly SLURM script: {script_filename}")
     return script_filename
-

@@ -1,5 +1,6 @@
 """
-Collect Cloudy output continuum spectra from Sobol-sampled models and add to HDF5 grid.
+Collect Cloudy output continuum spectra from Sobol-sampled models and add
+to HDF5 grid.
 
 Reads spectra from spectra/*.txt files and adds to the HDF5 file created by
 create_cloudy_input_sobol.py. The HDF5 file already contains:
@@ -36,8 +37,8 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
     Args:
         output_dir (str): Path to Cloudy output directory
         output_file (str): Output HDF5 filename (optional)
-        spec_names (tuple): Spectra to save - choose from "total", "nebular", "transmitted"
-                           (default: ("total",))
+        spec_names (tuple): Spectra to save - choose from "total",
+                           "nebular", "transmitted" (default: ("total",))
     """
     output_dir = Path(output_dir)
 
@@ -53,7 +54,8 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
     if not output_file.exists():
         raise FileNotFoundError(
             f"Grid HDF5 file not found: {output_file}. "
-            f"Run create_cloudy_input_sobol.py first to create the parameter grid."
+            f"Run create_cloudy_input_sobol.py first to create the "
+            f"parameter grid."
         )
 
     # Load grid parameters from YAML for cloudy version
@@ -66,8 +68,6 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
     # Read n_samples and parameters from existing HDF5 file
     with h5py.File(output_file, "r") as hf:
         n_samples = hf.attrs["n_samples"]
-        # Get parameter names from the parameters group
-        varying_param_names = list(hf["parameters"].keys())
 
     print(f"Collecting {n_samples} Sobol samples from {output_dir}")
     print(f"Cloudy version: {cloudy_version}")
@@ -75,7 +75,9 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
     # Read wavelength grid from first spectra file
     first_spec_file = output_dir / "spectra" / "spectra_0.txt"
     if not first_spec_file.exists():
-        raise FileNotFoundError(f"No spectra files found in {output_dir / 'spectra'}")
+        raise FileNotFoundError(
+            f"No spectra files found in {output_dir / 'spectra'}"
+        )
 
     first_data = np.loadtxt(first_spec_file)
     nu = first_data[:, 0]
@@ -102,13 +104,17 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
             missing_files.append(i)
             continue
 
-        # Read spectrum from text file (columns: nu, transmitted, nebular, total)
+        # Read spectrum from text file
+        # (columns: nu, transmitted, nebular, total)
         data = np.loadtxt(spec_file)
         nu_sample = data[:, 0]
 
         # Verify wavelength grid consistency
         if len(nu_sample) != n_lambda:
-            print(f"Warning: Sample {i} has {len(nu_sample)} wavelength points, expected {n_lambda}")
+            print(
+                f"Warning: Sample {i} has {len(nu_sample)} wavelength "
+                f"points, expected {n_lambda}"
+            )
             continue
 
         # Store requested spectra
@@ -123,11 +129,15 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
                 raise ValueError(f"Unknown spectrum type: {spec_name}")
 
     if missing_files:
-        print(f"\nWarning: {len(missing_files)} missing spectra files: {missing_files[:10]}...")
+        print(
+            f"\nWarning: {len(missing_files)} missing spectra files: "
+            f"{missing_files[:10]}..."
+        )
 
     print(f"\nAdding spectra to {output_file}")
 
-    # Append spectra to existing HDF5 file (parameters already saved by create_cloudy_input_sobol.py)
+    # Append spectra to existing HDF5 file
+    # (parameters already saved by create_cloudy_input_sobol.py)
     with h5py.File(output_file, "a") as hf:
         # Create spectra group if it doesn't exist
         if "spectra" not in hf:
@@ -160,7 +170,10 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
         hf.attrs["n_wavelength"] = n_lambda
         hf.attrs["spec_names"] = list(spec_names)
 
-    print(f"Successfully added {n_samples} spectra ({', '.join(spec_names)}) to {output_file}")
+    print(
+        f"Successfully added {n_samples} spectra ({', '.join(spec_names)}) "
+        f"to {output_file}"
+    )
 
 
 if __name__ == "__main__":
@@ -180,7 +193,8 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default=None,
-        help="HDF5 grid file path (default: auto-detected from output_dir name)",
+        help="HDF5 grid file path (default: auto-detected from "
+        "output_dir name)",
     )
 
     parser.add_argument(
@@ -190,7 +204,8 @@ if __name__ == "__main__":
         required=False,
         default=["total", "transmitted", "nebular"],
         choices=["total", "nebular", "transmitted"],
-        help="Spectra to save (default: total transmitted nebular). Can specify multiple: --spec-names total nebular transmitted",
+        help="Spectra to save (default: total transmitted nebular). "
+        "Can specify multiple: --spec-names total nebular transmitted",
     )
 
     args = parser.parse_args()

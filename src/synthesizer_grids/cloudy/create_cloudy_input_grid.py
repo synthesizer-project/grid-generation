@@ -11,10 +11,7 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from synthesizer.abundances import (
-    Abundances,
-    depletion_models
-)
+from synthesizer.abundances import Abundances, depletion_models
 from synthesizer.exceptions import InconsistentParameter
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
@@ -69,9 +66,13 @@ def create_cloudy_input(
         metallicity=float(parameters["metallicities"]),
         reference=parameters["reference_abundance"],
         alpha=parameters["alpha_enhancement"],
-        abundances=parameters["abundance_scalings"] if parameters["abundance_scalings"] else None,
-        depletion_model=depletion_models.Gutkin2016(),  # parameters["depletion_model"],
-        # depletion_scale=parameters["depletion_scale"],  # TODO: broken, needs fixing
+        abundances=parameters["abundance_scalings"]
+        if parameters["abundance_scalings"]
+        else None,
+        # parameters["depletion_model"],
+        depletion_model=depletion_models.Gutkin2016(),
+        # depletion_scale=parameters["depletion_scale"],
+        # TODO: broken, needs fixing
     )
 
     # Define the ionisation parameter and geometry
