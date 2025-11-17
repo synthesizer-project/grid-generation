@@ -193,8 +193,6 @@ def create_empty_grid(
         data=weight_var,
     )
 
-    print(incident_grid._extract_axes)
-
     # Now write out the grid axes, we first do the incident grid axes so we
     # can extract their metadata and then any extras
     for axis, extract_axis in zip(
@@ -410,7 +408,7 @@ def check_cloudy_runs(
                     )
 
                 # Print the indices and the last line of the cloudy out file
-                print(incident_index, photoionisation_index, last_line)
+                print("    ", incident_index, photoionisation_index, last_line)
 
     number_of_failed_models = len(failed_list)
 
@@ -867,9 +865,9 @@ if __name__ == "__main__":
 
     print(" " * 80)
     print("-" * 80)
-    print(incident_grid_name)
-    print(cloudy_param_file)
-    print(extra_cloudy_param_file)
+    print("incident_grid_name:", incident_grid_name)
+    print("cloudy_param_file:", cloudy_param_file)
+    print("extra_cloudy_param_file:", extra_cloudy_param_file)
 
     # Check for extensions
     # Create _file and _name versions (with and w/o extensions)
@@ -907,8 +905,6 @@ if __name__ == "__main__":
         new_grid_name += "-" + extra_cloudy_param_name
 
     new_grid_file = new_grid_name + ".hdf5"
-    print(cloudy_param_name, cloudy_param_file)
-    print(new_grid_name, new_grid_file)
 
     # Open the incident grid using synthesizer
     incident_grid = Grid(
@@ -947,8 +943,12 @@ if __name__ == "__main__":
         fixed_photoionisation_params |= photoionisation_fixed_params_
         variable_photoionisation_params |= photoionisation_variable_params_
 
-    print(fixed_photoionisation_params)
-    print(variable_photoionisation_params)
+    print("fixed photoionisation parameters:")
+    for k, v in fixed_photoionisation_params.items():
+        print(f"    {k}: {v}")
+    print("variable photoionisation parameters:")
+    for k, v in variable_photoionisation_params.items():
+        print(f"    {k}: {v}")
 
     # If we have photoionisation parameters that vary we need to calculate the
     # model list
@@ -989,7 +989,6 @@ if __name__ == "__main__":
         new_axes += photoionisation_axes
         new_axes_values |= variable_photoionisation_params
 
-    print(new_axes)
     for key, value in new_axes_values.items():
         print(key, value)
 
