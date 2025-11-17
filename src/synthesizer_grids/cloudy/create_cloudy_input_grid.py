@@ -59,7 +59,7 @@ def create_cloudy_input(
             if k.split(".")[0] == "abundance_scalings":
                 kk = k.split(".")[1]
 
-                if v:
+                if v is not None:
                     # The value (v) here could be a bona fide string or number,
                     # try to convert to a
                     try:
