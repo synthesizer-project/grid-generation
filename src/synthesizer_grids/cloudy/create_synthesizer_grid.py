@@ -1018,7 +1018,7 @@ if __name__ == "__main__":
     # recording failures with zeros in the spectra and line quantities. The
     # code will also save an array of failure flags.
 
-    # Now add spectra
+    # Now add spectra.
     if include_spectra:
         lam, spectra = add_spectra(
             new_grid,
