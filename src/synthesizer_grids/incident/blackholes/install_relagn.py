@@ -290,6 +290,15 @@ if __name__ == "__main__":
 
     # Generate all combinations of arguments (Flattening the loops)
     # This creates a generator, which is memory efficient
+    if isotropic:
+        # When isotropic, add the scalar cosine_inclination to
+        # each parameter tuple
+        param_grid = [
+            (*params, cosine_inclination)
+            for params in itertools.product(*iterables)
+        ]
+    else:
+        param_grid = list(itertools.product(*iterables))
     param_grid = itertools.product(*iterables)
 
     print("Starting RELAGN SED calculations...")
@@ -313,7 +322,7 @@ if __name__ == "__main__":
             # We need to rename the spins axis to radiative_efficiencies,
             # and ensure the same orders of values are maintained since
             # the order was used to set the spectra shape
-            rename_dictionary_key(
+            axes = rename_dictionary_key(
                 axes,
                 old_key="spins",
                 new_key="radiative_efficiencies",
