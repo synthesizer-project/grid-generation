@@ -22,6 +22,7 @@ from numpy.typing import NDArray
 # Import relagn module
 from relagn import relagn
 from scipy.optimize import brentq
+from synthesizer.exceptions import InconsistentParameter
 from unyt import Angstrom, Hz, Msun, dimensionless, erg, s
 
 from synthesizer_grids.grid_io import GridFile
@@ -33,7 +34,7 @@ def calc_risco(spin: float) -> float:
     black hole.
 
     Attrs:
-        spin (float): Dimensionless spin parameter (-1 to 1)
+        spin (float): Dimensionless spin parameter (-0.998 to 0.998)
 
     Returns:
         risco (float): Innermost stable circular orbit in units of GM/c^2
@@ -52,7 +53,7 @@ def calc_efficiency(spin: float) -> float:
     """Calculate the accretion efficiency for a given spin.
 
     Attrs:
-        spin (float): Dimensionless spin parameter (-1 to 1)
+        spin (float): Dimensionless spin parameter (0.0 to 0.998)
 
     Returns:
         eta (float): Accretion efficiency
@@ -65,18 +66,31 @@ def calc_efficiency(spin: float) -> float:
 
 
 def invert_spin(
-    eta_target: float, spin_min: float = -1.0, spin_max: float = 1.0
+    eta_target: float, spin_min: float = 0.0, spin_max: float = 0.998
 ) -> float:
     """Invert efficiency to get spin.
 
     Attrs:
         eta_target (float): Accretion efficiency (0 to 1)
-        spin_min (float): Minimum spin to search
+        spin_min (float): Minimum spin to search, RELAGN only
+        valid for prograde spins, so min is 0.0
         spin_max (float): Maximum spin to search
 
     Returns:
-        spin (float): Dimensionless spin parameter (-1 to 1)
+        spin (float): Dimensionless spin parameter (0.0 to 0.998)
+
+    Raises:
+        ValueError: If eta_target is outside achievable spin range.
     """
+
+    eta_min = calc_efficiency(spin_min)
+    eta_max = calc_efficiency(spin_max)
+    if not (eta_min <= eta_target <= eta_max):
+        raise InconsistentParameter(
+            f"eta_target={eta_target} outside achievable range "
+            f"[{eta_min:.4f}, {eta_max:.4f}] for spin in "
+            f"[{spin_min}, {spin_max}]"
+        )
 
     def func(spin: float) -> float:
         """Function to find root of."""
@@ -229,11 +243,6 @@ if __name__ == "__main__":
 
     if not isotropic:
         axes_values["cosine_inclinations"] = np.array(cosine_inclination)
-
-    # the shape of the grid (useful for creating outputs)
-    axes_shape = list(
-        [len(axes_values[axis_name]) for axis_name in axes_names]
-    )
 
     # define axes dictionary which is saved to the HDF5 file
     axes = {}
