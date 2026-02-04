@@ -17,6 +17,7 @@ from multiprocessing import Pool
 
 import numpy as np
 import yaml
+from numpy.typing import NDArray
 
 # Import relagn module
 from relagn import relagn
@@ -27,7 +28,7 @@ from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
 
 
-def calc_risco(spin):
+def calc_risco(spin: float) -> float:
     """Calculating innermost stable circular orbit for a spinning
     black hole.
 
@@ -47,7 +48,7 @@ def calc_risco(spin):
     return risco
 
 
-def calc_efficiency(spin):
+def calc_efficiency(spin: float) -> float:
     """Calculate the accretion efficiency for a given spin.
 
     Attrs:
@@ -63,7 +64,9 @@ def calc_efficiency(spin):
     return eta
 
 
-def invert_spin(eta_target, spin_min=-1.0, spin_max=1.0):
+def invert_spin(
+    eta_target: float, spin_min: float = -1.0, spin_max: float = 1.0
+) -> float:
     """Invert efficiency to get spin.
 
     Attrs:
@@ -75,13 +78,19 @@ def invert_spin(eta_target, spin_min=-1.0, spin_max=1.0):
         spin (float): Dimensionless spin parameter (-1 to 1)
     """
 
-    def f(spin):
+    def func(spin: float) -> float:
+        """Function to find root of."""
         return eta_target - calc_efficiency(spin)
 
-    return brentq(f, spin_min, spin_max, xtol=1e-12, rtol=1e-12)
+    return brentq(func, spin_min, spin_max, xtol=1e-12, rtol=1e-12)
 
 
-def compute_single_spectrum(mass, mdot, spin, cos_inc):
+def compute_single_spectrum(
+    mass: float,
+    mdot: float,
+    spin: float,
+    cos_inc: float,
+) -> NDArray:
     """Function to calculate SED for a single set of parameters.
 
     Attrs:
@@ -91,7 +100,7 @@ def compute_single_spectrum(mass, mdot, spin, cos_inc):
         cos_inc (float): Cosine of the inclination angle.
 
     Returns:
-        lnu (np.ndarray): The computed SED in wavelength order.
+        lnu (NDArray): The computed SED in wavelength order.
     """
     # Re-instantiate the physics object inside the worker process
     dagn = relagn(
