@@ -185,12 +185,13 @@ if __name__ == "__main__":
         spin = np.array(parameters["spins"])
 
     # check whether isotropic or not
-    if isinstance(parameters["cosine_inclinations"], float):
-        cosine_inclination = parameters["cosine_inclinations"]
+    cos_inc_param = parameters["cosine_inclinations"]
+    if np.isscalar(cos_inc_param):
+        cosine_inclination = float(cos_inc_param)
         axes_names.remove("cosine_inclinations")
         isotropic = True
     else:
-        cosine_inclination = np.array(parameters["cosine_inclinations"])
+        cosine_inclination = np.array(cos_inc_param)
         isotropic = False
 
     # Check if parameters within range
