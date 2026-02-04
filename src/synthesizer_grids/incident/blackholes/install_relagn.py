@@ -29,6 +29,30 @@ from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
 
 
+def rename_dictionary_key(
+    dictionary: dict,
+    old_key: str,
+    new_key: str,
+    new_value=None,
+) -> dict:
+    """Rename a key in a dictionary.
+
+    Attrs:
+        dictionary (dict): Input dictionary
+        old_key (str): Old key name
+        new_key (str): New key name
+        new_value: New value for the renamed key
+
+    Returns:
+        dictionary (dict): Updated dictionary
+    """
+
+    return {
+        (new_key if k == old_key else k): (new_value if k == old_key else v)
+        for k, v in dictionary.items()
+    }
+
+
 def calc_risco(spin: float) -> float:
     """Calculating innermost stable circular orbit for a spinning
     black hole.
@@ -149,6 +173,8 @@ if __name__ == "__main__":
         " rate [LEdd=eta MdotEdd c^2]",
         "cosine_inclinations": "cosine of the inclination",
         "spins": "dimensionless spin",
+        "radiative_efficiencies": "radiative efficiency of the accreting "
+        "black hole",
     }
 
     axes_units = {
@@ -156,6 +182,7 @@ if __name__ == "__main__":
         "accretion_rates_eddington": dimensionless,
         "cosine_inclinations": dimensionless,
         "spins": dimensionless,
+        "radiative_efficiencies": dimensionless,
     }
 
     # Set log_on_read, i.e. which axes should be logged when extracted
@@ -164,6 +191,7 @@ if __name__ == "__main__":
         "masses": True,
         "accretion_rates_eddington": True,
         "spins": False,
+        "radiative_efficiencies": False,
     }
 
     # Parameter ranges
@@ -280,19 +308,17 @@ if __name__ == "__main__":
         log_on_read["cosine_inclinations"] = False
 
     if "spins" not in parameters:
-        axes_names.remove("spins")
-        del axes["spins"]
-        del log_on_read["spins"]
-
-        if (
-            np.isscalar(rad_efficiencies) is False
-            and np.size(rad_efficiencies) != 1
-        ):
-            axes["radiative_efficiencies"] = rad_efficiencies * dimensionless
-            axes_descriptions["radiative_efficiencies"] = (
-                "radiative efficiency of the accreting black hole"
+        if np.atleast_1d(rad_efficiencies).size > 1:
+            # Add radiative efficiencies to axes and descriptions.
+            # We need to rename the spins axis to radiative_efficiencies,
+            # and ensure the same orders of values are maintained since
+            # the order was used to set the spectra shape
+            rename_dictionary_key(
+                axes,
+                old_key="spins",
+                new_key="radiative_efficiencies",
+                new_value=rad_efficiencies * dimensionless,
             )
-            log_on_read["radiative_efficiencies"] = False
 
     # Write everything out thats common to all models
     out_grid.write_grid_common(
