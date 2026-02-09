@@ -219,10 +219,23 @@ if __name__ == "__main__":
     accretion_rate_eddington = 10 ** np.array(
         parameters["log10accretion_rates_eddington"]
     )
+
+    if "spins" in parameters and "radiative_efficiencies" in parameters:
+        raise InconsistentParameter(
+            "Cannot specify both 'spins' and 'radiative_efficiencies' in "
+            "parameters. Please specify only one of these"
+        )
+
     if "spins" not in parameters:
-        rad_efficiencies = np.array(parameters["radiative_efficiencies"])
-        spin = np.array([invert_spin(eta) for eta in rad_efficiencies])
-        print(f"spin={spin} for rad_efficiencies={rad_efficiencies}")
+        if "radiative_efficiencies" not in parameters:
+            raise InconsistentParameter(
+                "Must specify either spins or radiative_efficiencies in "
+                "parameters"
+            )
+        else:
+            rad_efficiencies = np.array(parameters["radiative_efficiencies"])
+            spin = np.array([invert_spin(eta) for eta in rad_efficiencies])
+            print(f"spin={spin} for rad_efficiencies={rad_efficiencies}")
     else:
         spin = np.array(parameters["spins"])
 
@@ -328,6 +341,8 @@ if __name__ == "__main__":
                 new_key="radiative_efficiencies",
                 new_value=rad_efficiencies * dimensionless,
             )
+        else:
+            del axes["spins"]
 
     # Write everything out thats common to all models
     out_grid.write_grid_common(
