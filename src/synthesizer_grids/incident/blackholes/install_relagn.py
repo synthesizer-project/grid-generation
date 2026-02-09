@@ -104,7 +104,8 @@ def invert_spin(
         spin (float): Dimensionless spin parameter (0.0 to 0.998)
 
     Raises:
-        ValueError: If eta_target is outside achievable spin range.
+        InconsistentParameter: If eta_target is outside achievable
+        spin range.
     """
 
     eta_min = calc_efficiency(spin_min)
@@ -302,7 +303,6 @@ if __name__ == "__main__":
     grid_shape = tuple(len(x) for x in iterables if len(x) > 1)
 
     # Generate all combinations of arguments (Flattening the loops)
-    # This creates a generator, which is memory efficient
     if isotropic:
         # When isotropic, add the scalar cosine_inclination to
         # each parameter tuple
@@ -312,7 +312,6 @@ if __name__ == "__main__":
         ]
     else:
         param_grid = list(itertools.product(*iterables))
-    param_grid = itertools.product(*iterables)
 
     print("Starting RELAGN SED calculations...")
     with Pool(processes=args.num_procs) as pool:
