@@ -127,7 +127,8 @@ def generate_grid(model):
     out_grid.write_dataset(
         "star_fraction",
         stellar_fraction * dimensionless,
-        "Three-dimensional remaining stellar fraction grid, [age, Z, high_mass_slope]",
+        """Three-dimensional remaining stellar fraction grid,
+        [age, Z, high_mass_slope]""",
         log_on_read=False,
     )
 
