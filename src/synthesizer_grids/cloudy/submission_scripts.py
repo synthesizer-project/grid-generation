@@ -219,7 +219,7 @@ def cosma7_sobol(
         n_samples (int): Total number of Sobol samples
         cloudy_output_dir (str): Base directory containing grid outputs
         cloudy_executable_path (str): Path to cloudy executable directory
-        account (str): SLURM account (default: dp004)
+        account (str): SLURM account (default: dp276)
         partition (str): SLURM partition (default: cosma7)
         time_per_model (int): Time per model in minutes (default: 10)
         use_striding (bool): Use strided array jobs (default: True)
@@ -281,6 +281,8 @@ def cosma7_sobol(
         [
             "#SBATCH --output=./logs/log%A_%a.out",
             "#SBATCH --error=./logs/log%A_%a.err",
+            "",
+            "mkdir -p logs",
             "",
             f"# Grid: {new_grid_name}",
             f"TOTAL_SAMPLES={n_samples}",
@@ -370,7 +372,7 @@ def cosma7_sobol_onthefly(
     cloudy_output_dir,
     cloudy_executable_path,
     python_env=None,
-    account="dp004",
+    account="dp276",
     partition="cosma7",
     time_per_model=10,
     use_striding=True,
@@ -430,6 +432,8 @@ def cosma7_sobol_onthefly(
             "#SBATCH --output=./logs/log%A_%a.out",
             "#SBATCH --error=./logs/log%A_%a.err",
             "",
+            "mkdir -p logs",
+            "",
             f"TOTAL_SAMPLES={n_samples}",
             f'GRID_DIR="{grid_dir}"',
             f'CLOUDY_EXE="{cloudy_executable_path}/cloudy.exe"',
@@ -464,7 +468,7 @@ def cosma7_sobol_onthefly(
                 "    $CLOUDY_EXE -r 0",
                 '    if [ $? -eq 0 ] && [ -f "0.cont" ]; then',
                 "        tail -n +2 0.cont | "
-                "awk '{print $1, $3, $4, $7}' > "
+                "awk '{print $1, $2, $3, $4, $5, $9}' > "
                 '"$GRID_DIR/spectra/spectra_${incident_idx}.txt"',
                 '        cd "$GRID_DIR" && rm -rf "$work_dir"',
                 "    fi",
@@ -484,7 +488,7 @@ def cosma7_sobol_onthefly(
                 "$CLOUDY_EXE -r 0",
                 'if [ $? -eq 0 ] && [ -f "0.cont" ]; then',
                 "    tail -n +2 0.cont | "
-                "awk '{print $1, $3, $4, $7}' > "
+                "awk '{print $1, $2, $3, $4, $5, $9}' > "
                 '"$GRID_DIR/spectra/spectra_${incident_idx}.txt"',
                 '    cd "$GRID_DIR" && rm -rf "$work_dir"',
                 "fi",

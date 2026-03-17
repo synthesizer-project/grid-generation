@@ -72,12 +72,13 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
     print(f"Collecting {n_samples} Sobol samples from {output_dir}")
     print(f"Cloudy version: {cloudy_version}")
 
-    # Read wavelength grid from first spectra file
-    first_spec_file = output_dir / "spectra" / "spectra_0.txt"
-    if not first_spec_file.exists():
+    # Read wavelength grid from first available spectra file
+    available = sorted((output_dir / "spectra").glob("spectra_*.txt"))
+    if not available:
         raise FileNotFoundError(
             f"No spectra files found in {output_dir / 'spectra'}"
         )
+    first_spec_file = available[0]
 
     first_data = np.loadtxt(first_spec_file)
     nu = first_data[:, 0]
@@ -104,8 +105,7 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
             missing_files.append(i)
             continue
 
-        # Read spectrum from text file
-        # (columns: nu, transmitted, nebular, total)
+        # Columns: nu, incident, transmitted, nebular, total, linecont
         data = np.loadtxt(spec_file)
         nu_sample = data[:, 0]
 
@@ -117,16 +117,19 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
             )
             continue
 
-        # Store requested spectra
+        # Columns: 0=nu, 1=incident, 2=transmitted, 3=nebular, 4=total,
+        # 5=linecont
+        col_map = {
+            "incident": 1,
+            "transmitted": 2,
+            "nebular": 3,
+            "total": 4,
+            "linecont": 5,
+        }
         for spec_name in spec_names:
-            if spec_name == "transmitted":
-                spectra["transmitted"][i, :] = data[:, 1]
-            elif spec_name == "nebular":
-                spectra["nebular"][i, :] = data[:, 2]
-            elif spec_name == "total":
-                spectra["total"][i, :] = data[:, 3]
-            else:
+            if spec_name not in col_map:
                 raise ValueError(f"Unknown spectrum type: {spec_name}")
+            spectra[spec_name][i, :] = data[:, col_map[spec_name]]
 
     if missing_files:
         print(
@@ -202,10 +205,11 @@ if __name__ == "__main__":
         type=str,
         nargs="+",
         required=False,
-        default=["total", "transmitted", "nebular"],
-        choices=["total", "nebular", "transmitted"],
-        help="Spectra to save (default: total transmitted nebular). "
-        "Can specify multiple: --spec-names total nebular transmitted",
+        default=["incident", "transmitted", "nebular", "total", "linecont"],
+        choices=["incident", "transmitted", "nebular", "total", "linecont"],
+        help="Spectra to save (default: all five). "
+        "Can specify multiple: --spec-names incident transmitted nebular "
+        "total linecont",
     )
 
     args = parser.parse_args()

@@ -6,14 +6,22 @@ for a specific sample index without requiring all files to exist on disk.
 """
 
 import argparse
+import json
+import os
 import shutil
 from pathlib import Path
 
 import h5py
 import numpy as np
 import yaml
-from create_cloudy_input_grid import create_cloudy_input
 from synthesizer.photoionisation import cloudy17, cloudy23
+
+from synthesizer_grids.cloudy.create_cloudy_input_grid import (
+    create_cloudy_input,
+)
+
+# Cloudy 25 uses the same interface as 23; alias for semantic clarity
+cloudy25 = cloudy23
 from unyt import Angstrom, Hz, erg, s
 
 
@@ -47,8 +55,8 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
         grid_params = yaml.safe_load(f)
 
     cloudy_version = grid_params["cloudy_version"]
-    if cloudy_version.split(".")[0] in ["c23", "c25"]:
-        cloudy = cloudy23
+    if cloudy_version.startswith("c23") or cloudy_version.startswith("c25"):
+        cloudy = cloudy25
     elif cloudy_version.split(".")[0] == "c17":
         cloudy = cloudy17
     else:
@@ -84,8 +92,6 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
             ]:
                 value = hf.attrs[key]
                 if isinstance(value, bytes):
-                    import json
-
                     fixed_params[key] = json.loads(value.decode())
                 else:
                     fixed_params[key] = value
@@ -137,8 +143,6 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
     shutil.copyfile(grid_dir / linelist_name, work_dir / linelist_name)
 
     # Change to work_dir so create_cloudy_input can find linelist
-    import os
-
     original_dir = os.getcwd()
     os.chdir(temp_parent)
 

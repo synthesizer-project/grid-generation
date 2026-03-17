@@ -17,6 +17,9 @@ from synthesizer.emission_models import IncidentEmission
 from synthesizer.grid import Grid
 from synthesizer.particle import Stars
 from synthesizer.photoionisation import cloudy17, cloudy23
+
+# Cloudy 25 uses the same interface as 23; alias for semantic clarity
+cloudy25 = cloudy23
 from unyt import Msun, yr
 
 import synthesizer_grids.cloudy.submission_scripts as submission_scripts
@@ -278,15 +281,14 @@ if __name__ == "__main__":
     # Create output directory
     output_directory = f"{cloudy_output_dir}/{new_grid_name}"
     Path(output_directory).mkdir(parents=True, exist_ok=True)
+    Path(f"{output_directory}/logs").mkdir(exist_ok=True)
 
     # Determine Cloudy version
     cloudy_version = fixed_params["cloudy_version"]
     if cloudy_version == "c17.03":
         cloudy = cloudy17
-    elif cloudy_version == "c23.01":
-        cloudy = cloudy23
-    elif cloudy_version == "c25.00":
-        cloudy = cloudy23  # Use cloudy23 module for c25.00 as well
+    elif cloudy_version.startswith("c23") or cloudy_version.startswith("c25"):
+        cloudy = cloudy25
     else:
         raise ValueError(f"Unknown Cloudy version: {cloudy_version}")
 
@@ -370,7 +372,7 @@ if __name__ == "__main__":
     initial_masses = np.ones(n_samples) * Msun
     stars = Stars(
         initial_masses=initial_masses,
-        ages=ages_array * yr,  # Convert log10(age/Gyr) to linear age
+        ages=ages_array * yr,
         metallicities=metallicities_array,
     )
 
@@ -414,7 +416,7 @@ if __name__ == "__main__":
         # Need to interpolate log10_specific_ionising_lum
         ref_stars = Stars(
             initial_masses=initial_masses,
-            ages=10**ages_array * yr,
+            ages=ages_array * yr,
             metallicities=metallicities_array,
         )
         # Get ionising photon luminosity at sampled points
