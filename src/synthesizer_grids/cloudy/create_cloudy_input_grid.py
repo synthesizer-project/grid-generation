@@ -11,12 +11,13 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from synthesizer.abundances import (
-    Abundances,
-)
+from synthesizer.abundances import Abundances, depletion_models
 from synthesizer.exceptions import InconsistentParameter
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
+
+# Cloudy 25 uses the same interface as 23; alias for semantic clarity
+cloudy25 = cloudy23
 
 import synthesizer_grids.cloudy.submission_scripts as submission_scripts
 from synthesizer_grids.cloudy.utils import (
@@ -68,9 +69,13 @@ def create_cloudy_input(
         metallicity=float(parameters["metallicities"]),
         reference=parameters["reference_abundance"],
         alpha=parameters["alpha_enhancement"],
-        abundances=parameters["abundance_scalings"],
-        depletion_model=parameters["depletion_model"],
-        depletion_scale=parameters["depletion_scale"],
+        abundances=parameters["abundance_scalings"]
+        if parameters["abundance_scalings"]
+        else None,
+        # parameters["depletion_model"],
+        depletion_model=depletion_models.Gutkin2016(),
+        # depletion_scale=parameters["depletion_scale"],
+        # TODO: broken, needs fixing
     )
 
     # Define the ionisation parameter and geometry
@@ -138,6 +143,15 @@ def create_cloudy_input(
     )
     with open(yaml_filename, "w") as file:
         yaml.dump(parameters_to_save, file, default_flow_style=False)
+
+    # Select cloudy module based on version
+    cloudy_version = parameters["cloudy_version"]
+    if cloudy_version == "c17.03":
+        cloudy = cloudy17
+    elif cloudy_version.startswith("c23") or cloudy_version.startswith("c25"):
+        cloudy = cloudy25
+    else:
+        raise ValueError(f"Unknown Cloudy version: {cloudy_version}")
 
     # Include shape command to read SED
     shape_commands = ['table SED "input.sed" \n']
@@ -286,10 +300,13 @@ if __name__ == "__main__":
     lam = incident_grid.lam
 
     # Use cloudy version to initialise a synthesizer.cloudy object
-    if fixed_photoionisation_params["cloudy_version"] == "c17.03":
+    cloudy_version = fixed_photoionisation_params["cloudy_version"]
+    if cloudy_version == "c17.03":
         cloudy = cloudy17
-    if fixed_photoionisation_params["cloudy_version"] == "c23.01":
+    elif cloudy_version.startswith("c23") or cloudy_version.startswith("c25"):
         cloudy = cloudy23
+    else:
+        raise ValueError(f"Unknown Cloudy version: {cloudy_version}")
 
     # Save all the parameters for use later
     parameters_to_save = (
