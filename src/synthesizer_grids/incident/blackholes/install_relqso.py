@@ -181,7 +181,7 @@ if __name__ == "__main__":
         wavelength=lam,
         log_on_read=log_on_read,
         spectra={"incident": spec * erg / s / Hz},
-        weight="bolometric_luminosities",
+        weight="None",
     )
 
     # Include the specific ionising photon luminosity
