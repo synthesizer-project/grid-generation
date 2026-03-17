@@ -1,0 +1,43 @@
+# Default config for SPS incident grids using Cloudy c25.00.
+
+cloudy_version: c25.00
+
+# ABUNDANCE PATTERN AND DEPLETION
+reference_abundance: GalacticConcordance
+alpha_enhancement: 0.0
+abundance_scalings:
+  nitrogen: GalacticConcordance
+  carbon: GalacticConcordance
+depletion_model: Jenkins2009_Gunasekera2021
+depletion_scale: 0.5
+
+# GRAINS
+grains: Orion
+
+# GEOMETRY
+geometry: planeparallel
+
+# IONISATION PARAMETER
+ionisation_parameter_model: fixed
+ionisation_parameter: [0.0001, 0.001, 0.01, 0.1]
+
+# DENSITY
+hydrogen_density: [1.0e+1, 1.0e+2, 1.0e+3, 1.0e+4]
+
+# STOPPING CRITERIA
+stop_T: 500
+stop_efrac: -2
+
+# MISC COMMANDS
+CMB:
+T_floor: 100
+cosmic_rays: true
+radius: 0.01
+turbulence: 100
+z: 0.0
+
+# OUTPUT COMMANDS
+resolution: 1.0
+output_cont: false
+output_linelist: linelist-standard.dat
+iterate_to_convergence: true

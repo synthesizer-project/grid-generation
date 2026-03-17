@@ -1,215 +1,303 @@
-"""
-Collect Cloudy output continuum spectra from Sobol-sampled models and add
-to HDF5 grid.
+"""Append Cloudy outputs from a Sobol run into its HDF5 file."""
 
-Reads spectra from spectra/*.txt files and adds to the HDF5 file created by
-create_cloudy_input_sobol.py. The HDF5 file already contains:
-- Sampled parameter values for each model (in parameters/ group)
-- Fixed parameters as attributes
-
-This script adds:
-- Continuum spectra as 2D dataset(s) - choose from total, nebular, transmitted
-- Wavelength grid
-
-Usage:
-    # Save total spectrum only (default)
-    python collect_sobol_outputs.py \
-        --output-dir /path/to/cloudy_output_dir
-
-    # Save multiple spectra
-    python collect_sobol_outputs.py \
-        --output-dir /path/to/cloudy_output_dir \
-        --spec-names total nebular transmitted
-"""
+from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Dict, Iterable
 
 import h5py
 import numpy as np
 import yaml
+from synthesizer.emissions import Sed
+from unyt import Angstrom, Hz, erg, eV, s
+
+from synthesizer_grids.cloudy import cloudy17, cloudy23
+from synthesizer_grids.cloudy.create_synthesizer_grid import (
+    CloudyOutputLocator,
+    check_if_failed,
+)
+
+VALID_SPECTRA = ("incident", "transmitted", "nebular", "linecont", "total")
 
 
-def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
-    """
-    Collect all Sobol output spectra and parameters into HDF5.
+def _select_cloudy_module(version: str):
+    prefix = version.split(".")[0].lower()
+    if prefix in ("c23", "c25"):
+        return cloudy23
+    if prefix == "c17":
+        return cloudy17
+    raise ValueError(f"Unsupported Cloudy version '{version}'")
 
-    Args:
-        output_dir (str): Path to Cloudy output directory
-        output_file (str): Output HDF5 filename (optional)
-        spec_names (tuple): Spectra to save - choose from "total",
-                           "nebular", "transmitted" (default: ("total",))
-    """
-    output_dir = Path(output_dir)
 
-    # Determine HDF5 grid file path
-    # If output_file not specified, use the grid name from the directory
-    if output_file is None:
-        grid_name = output_dir.name
-        output_file = output_dir / f"{grid_name}.hdf5"
+def _resolve_grid_file(
+    run_dir: Path, metadata: Dict[str, object], override: str | None
+) -> Path:
+    if override:
+        return Path(override)
+    if "grid_hdf5" in metadata:
+        return Path(metadata["grid_hdf5"])
+    return run_dir / f"{run_dir.name}.hdf5"
+
+
+def _initialise_line_arrays(n_samples: int, locator: CloudyOutputLocator):
+    with open(locator.linelist_path, "r") as handle:
+        raw_lines = handle.readlines()
+    clean_lines = [line.strip() for line in raw_lines if line.strip()]
+    n_lines = len(clean_lines)
+    arrays = {
+        "luminosity": np.zeros((n_samples, n_lines)),
+        "transmitted": np.zeros((n_samples, n_lines)),
+        "incident": np.zeros((n_samples, n_lines)),
+        "nebular_continuum": np.zeros((n_samples, n_lines)),
+        "total_continuum": np.zeros((n_samples, n_lines)),
+    }
+    return n_lines, arrays
+
+
+def _extract_spectrum(
+    spec_dict: Dict[str, np.ndarray], name: str
+) -> np.ndarray:
+    if name == "total" and "total" not in spec_dict:
+        return spec_dict["transmitted"] + spec_dict["nebular"]
+    return spec_dict[name]
+
+
+def collect_sobol_outputs(
+    output_dir: str,
+    output_file: str | None = None,
+    spec_names: Iterable[str] = (
+        "incident",
+        "transmitted",
+        "nebular",
+        "linecont",
+    ),
+    include_lines: bool = True,
+):
+    run_dir = Path(output_dir)
+    metadata_path = run_dir / "grid_parameters.yaml"
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"Missing metadata file: {metadata_path}")
+    with open(metadata_path, "r") as handle:
+        metadata = yaml.safe_load(handle)
+
+    grid_file = _resolve_grid_file(run_dir, metadata, output_file)
+    if not grid_file.exists():
+        raise FileNotFoundError(
+            f"Sobol grid file {grid_file} does not exist; "
+            "run the workflow first"
+        )
+
+    locator = CloudyOutputLocator(
+        run_dir.parent,
+        run_dir.name,
+        photoionisation_n_models=metadata.get("photoionisation_n_models"),
+    )
+    cloudy_module = _select_cloudy_module(metadata["cloudy_version"])
+    lam = cloudy_module.read_wavelength(str(locator.model_base_path(0, 0)))
+
+    with h5py.File(grid_file, "r") as hf:
+        n_samples = int(hf.attrs["n_samples"])
+        log10q_samples = (
+            hf["log10Q_samples"][:] if "log10Q_samples" in hf else None
+        )
+        reference_log10q = hf.attrs.get(
+            "reference_log10_specific_ionising_lum"
+        )
+
+    spectra_arrays = {
+        name: np.zeros((n_samples, len(lam))) for name in spec_names
+    }
+    normalisations = np.ones(n_samples)
+    failures = np.zeros(n_samples, dtype=int)
+
+    if include_lines:
+        _, line_arrays = _initialise_line_arrays(n_samples, locator)
+        line_wavelengths = None
+        line_ids = None
     else:
-        output_file = Path(output_file)
+        line_arrays = {}
+        line_wavelengths = None
+        line_ids = None
 
-    # Check if HDF5 file exists (created by create_cloudy_input_sobol.py)
-    if not output_file.exists():
-        raise FileNotFoundError(
-            f"Grid HDF5 file not found: {output_file}. "
-            f"Run create_cloudy_input_sobol.py first to create the "
-            f"parameter grid."
+    missing = []
+    for sample_idx in range(n_samples):
+        failed = check_if_failed(
+            locator,
+            sample_idx,
+            0,
         )
-
-    # Load grid parameters from YAML for cloudy version
-    param_file = output_dir / "grid_parameters.yaml"
-    with open(param_file, "r") as f:
-        grid_params = yaml.safe_load(f)
-
-    cloudy_version = grid_params["cloudy_version"]
-
-    # Read n_samples and parameters from existing HDF5 file
-    with h5py.File(output_file, "r") as hf:
-        n_samples = hf.attrs["n_samples"]
-
-    print(f"Collecting {n_samples} Sobol samples from {output_dir}")
-    print(f"Cloudy version: {cloudy_version}")
-
-    # Read wavelength grid from first spectra file
-    first_spec_file = output_dir / "spectra" / "spectra_0.txt"
-    if not first_spec_file.exists():
-        raise FileNotFoundError(
-            f"No spectra files found in {output_dir / 'spectra'}"
-        )
-
-    first_data = np.loadtxt(first_spec_file)
-    nu = first_data[:, 0]
-    n_lambda = len(nu)
-
-    # Convert frequency to wavelength (Angstrom)
-    c_angstrom_hz = 2.99792458e18
-    lam = c_angstrom_hz / nu
-
-    print(f"Wavelength grid size: {n_lambda}")
-    print(f"Spectra to save: {spec_names}")
-
-    # Initialize arrays for requested spectra
-    spectra = {}
-    for spec_name in spec_names:
-        spectra[spec_name] = np.zeros((n_samples, n_lambda))
-
-    # Collect spectra from indexed text files in spectra/ subdirectory
-    missing_files = []
-    for i in range(n_samples):
-        spec_file = output_dir / "spectra" / f"spectra_{i}.txt"
-
-        if not spec_file.exists():
-            missing_files.append(i)
+        if failed:
+            failures[sample_idx] = 1
+            missing.append(sample_idx)
             continue
 
-        # Read spectrum from text file
-        # (columns: nu, transmitted, nebular, total)
-        data = np.loadtxt(spec_file)
-        nu_sample = data[:, 0]
+        base_path = str(locator.model_base_path(sample_idx, 0))
+        spec_dict = cloudy_module.read_continuum(base_path, return_dict=True)
 
-        # Verify wavelength grid consistency
-        if len(nu_sample) != n_lambda:
-            print(
-                f"Warning: Sample {i} has {len(nu_sample)} wavelength "
-                f"points, expected {n_lambda}"
+        normalisation = 1.0
+        if reference_log10q is not None and log10q_samples is not None:
+            sed = Sed(
+                lam=lam * Angstrom,
+                lnu=spec_dict["incident"] * erg / s / Hz,
             )
-            continue
+            ionising_photon_production_rate = (
+                sed.calculate_ionising_photon_production_rate(
+                    ionisation_energy=13.6 * eV,
+                    limit=100,
+                )
+            )
+            normalisation = 10 ** (
+                log10q_samples[sample_idx]
+                - np.log10(ionising_photon_production_rate)
+            )
+        normalisations[sample_idx] = normalisation
 
-        # Store requested spectra
-        for spec_name in spec_names:
-            if spec_name == "transmitted":
-                spectra["transmitted"][i, :] = data[:, 1]
-            elif spec_name == "nebular":
-                spectra["nebular"][i, :] = data[:, 2]
-            elif spec_name == "total":
-                spectra["total"][i, :] = data[:, 3]
-            else:
-                raise ValueError(f"Unknown spectrum type: {spec_name}")
+        for name in spec_names:
+            spectra_arrays[name][sample_idx] = (
+                _extract_spectrum(spec_dict, name) * normalisation
+            )
 
-    if missing_files:
+        if include_lines:
+            ids, wavelengths, luminosities = cloudy_module.read_linelist(
+                base_path,
+                extension="emergent_elin",
+            )
+            order = np.argsort(wavelengths)
+            wavelengths = wavelengths[order]
+            luminosities = luminosities[order] * normalisation
+            ids = ids[order]
+
+            if line_wavelengths is None:
+                line_wavelengths = wavelengths * Angstrom
+                line_ids = ids
+
+            line_arrays["luminosity"][sample_idx] = luminosities
+
+            transmitted = spec_dict["transmitted"] * normalisation
+            incident = spec_dict["incident"] * normalisation
+            nebular_continuum = (
+                spec_dict["nebular"] - spec_dict["linecont"]
+            ) * normalisation
+            total_continuum = transmitted + nebular_continuum
+
+            line_arrays["transmitted"][sample_idx] = np.interp(
+                wavelengths,
+                lam,
+                transmitted,
+            )
+            line_arrays["incident"][sample_idx] = np.interp(
+                wavelengths,
+                lam,
+                incident,
+            )
+            line_arrays["nebular_continuum"][sample_idx] = np.interp(
+                wavelengths,
+                lam,
+                nebular_continuum,
+            )
+            line_arrays["total_continuum"][sample_idx] = np.interp(
+                wavelengths,
+                lam,
+                total_continuum,
+            )
+
+    if missing:
         print(
-            f"\nWarning: {len(missing_files)} missing spectra files: "
-            f"{missing_files[:10]}..."
+            f"Warning: {len(missing)} models missing outputs: {missing[:10]}"
         )
 
-    print(f"\nAdding spectra to {output_file}")
-
-    # Append spectra to existing HDF5 file
-    # (parameters already saved by create_cloudy_input_sobol.py)
-    with h5py.File(output_file, "a") as hf:
-        # Create spectra group if it doesn't exist
-        if "spectra" not in hf:
-            spectra_group = hf.create_group("spectra")
-        else:
-            spectra_group = hf["spectra"]
-
-        # Save requested spectra
-        for spec_name in spec_names:
-            # If single spectrum, save directly under spectra group
-            if len(spec_names) == 1:
-                dataset_name = spec_name
-            else:
-                dataset_name = spec_name
-
-            # Delete if already exists (allow re-running)
-            if dataset_name in spectra_group:
-                del spectra_group[dataset_name]
-
-            spectra_group.create_dataset(
-                dataset_name, data=spectra[spec_name], compression="gzip"
+    with h5py.File(grid_file, "a") as hf:
+        spectra_group = hf.require_group("spectra")
+        for name, data in spectra_arrays.items():
+            if name in spectra_group:
+                del spectra_group[name]
+            dataset = spectra_group.create_dataset(
+                name,
+                data=data,
+                compression="gzip",
             )
+            dataset.attrs["Units"] = "erg/s/Hz"
 
-        # Save wavelength grid (already in Angstroms from cloudy module)
         if "wavelength" in hf:
             del hf["wavelength"]
-        hf.create_dataset("wavelength", data=lam, compression="gzip")
+        wave = hf.create_dataset("wavelength", data=lam, compression="gzip")
+        wave.attrs["Units"] = "Angstrom"
 
-        # Update metadata
-        hf.attrs["n_wavelength"] = n_lambda
-        hf.attrs["spec_names"] = list(spec_names)
+        if "normalisation" in hf:
+            del hf["normalisation"]
+        hf.create_dataset("normalisation", data=normalisations)
 
-    print(
-        f"Successfully added {n_samples} spectra ({', '.join(spec_names)}) "
-        f"to {output_file}"
+        if "failures" in hf:
+            del hf["failures"]
+        hf.create_dataset("failures", data=failures)
+
+        if include_lines and line_wavelengths is not None:
+            lines_group = hf.require_group("lines")
+            for key, data in line_arrays.items():
+                if key in lines_group:
+                    del lines_group[key]
+                dataset = lines_group.create_dataset(
+                    key,
+                    data=data,
+                    compression="gzip",
+                )
+                if key == "luminosity":
+                    dataset.attrs["Units"] = "erg/s"
+                else:
+                    dataset.attrs["Units"] = "erg/s/Hz"
+            if "wavelength" in lines_group:
+                del lines_group["wavelength"]
+            wl = lines_group.create_dataset(
+                "wavelength",
+                data=line_wavelengths.value,
+                compression="gzip",
+            )
+            wl.attrs["Units"] = "Angstrom"
+            if line_ids is not None:
+                if "id" in lines_group:
+                    del lines_group["id"]
+                lines_group.create_dataset("id", data=line_ids.astype("S"))
+
+    print("Added spectra" f" ({', '.join(spec_names)}) to {grid_file}.")
+    if include_lines:
+        print("Added line luminosities and continuum estimates.")
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser(
+        description="Collect Sobol Cloudy outputs into an existing HDF5 file",
     )
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        help="Path to the Sobol Cloudy run directory",
+    )
+    parser.add_argument(
+        "--output-file",
+        default=None,
+        help="Optional explicit path to the Sobol HDF5 file",
+    )
+    parser.add_argument(
+        "--spec-names",
+        nargs="+",
+        choices=VALID_SPECTRA,
+        default=["incident", "transmitted", "nebular", "linecont"],
+        help="Spectra to store in the HDF5 file",
+    )
+    parser.add_argument(
+        "--no-lines",
+        action="store_true",
+        help="Skip ingesting emission line outputs",
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Collect Cloudy Sobol outputs into HDF5"
-    )
-
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        required=True,
-        help="Path to Cloudy output directory",
-    )
-
-    parser.add_argument(
-        "--output-file",
-        type=str,
-        required=False,
-        default=None,
-        help="HDF5 grid file path (default: auto-detected from "
-        "output_dir name)",
-    )
-
-    parser.add_argument(
-        "--spec-names",
-        type=str,
-        nargs="+",
-        required=False,
-        default=["total", "transmitted", "nebular"],
-        choices=["total", "nebular", "transmitted"],
-        help="Spectra to save (default: total transmitted nebular). "
-        "Can specify multiple: --spec-names total nebular transmitted",
-    )
-
-    args = parser.parse_args()
-
+    args = _parse_args()
     collect_sobol_outputs(
-        args.output_dir, args.output_file, spec_names=tuple(args.spec_names)
+        args.output_dir,
+        output_file=args.output_file,
+        spec_names=tuple(args.spec_names),
+        include_lines=not args.no_lines,
     )

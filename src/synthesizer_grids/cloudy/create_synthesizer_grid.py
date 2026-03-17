@@ -8,21 +8,22 @@ Example usage:
 
 """
 
-import os
 import re
+from pathlib import Path
 
+import h5py
 import numpy as np
-import submission_scripts
+import yaml
 from synthesizer.emissions import Sed
 from synthesizer.grid import Grid
-from synthesizer.photoionisation import cloudy17, cloudy23
 from synthesizer.units import has_units
 from unyt import Angstrom, Hz, cm, dimensionless, erg, eV, km, s, yr
-from utils import (
+
+from synthesizer_grids.cloudy import cloudy17, cloudy23, submission_scripts
+from synthesizer_grids.cloudy.utils import (
     get_cloudy_params,
     get_grid_props_cloudy,
 )
-
 from synthesizer_grids.grid_io import GridFile
 from synthesizer_grids.parser import Parser
 
@@ -67,6 +68,205 @@ pluralisation_of_axes = {
     "alpha_enhancement": "alpha_enhancements",
     "reference_ionisation_parameter": "reference_ionisation_parameters",
 }
+
+
+class CloudyOutputLocator:
+    """Helper for resolving Cloudy artifacts regardless of sampler type."""
+
+    def __init__(
+        self,
+        cloudy_dir,
+        grid_name,
+        photoionisation_n_models=None,
+    ):
+        self.run_dir = Path(cloudy_dir) / grid_name
+        self.output_dir = self.run_dir / "output"
+        if not self.output_dir.exists():
+            raise FileNotFoundError(
+                f"Expected Cloudy outputs under {self.output_dir},"
+                " but the directory does not exist"
+            )
+        self.metadata_path = self.run_dir / "grid_parameters.yaml"
+        self.metadata = self._load_metadata()
+        meta_photo = self.metadata.get("photoionisation_n_models")
+        if photoionisation_n_models is None:
+            self.photoionisation_n_models = int(meta_photo or 1)
+        else:
+            self.photoionisation_n_models = int(photoionisation_n_models)
+        self.linelist_path = self._resolve_linelist_path()
+
+    def _load_metadata(self):
+        if not self.metadata_path.exists():
+            return {}
+        with open(self.metadata_path, "r") as handle:
+            return yaml.safe_load(handle) or {}
+
+    def _resolve_linelist_path(self):
+        linelist = self.metadata.get("linelist_path")
+        if linelist:
+            candidate = Path(linelist).expanduser()
+            if candidate.exists():
+                return candidate
+        name = self.metadata.get("linelist_name", "linelist.dat")
+        fallback = self.run_dir / name
+        if fallback.exists():
+            return fallback
+        raise FileNotFoundError(
+            "Unable to locate linelist. Checked metadata entry 'linelist_path'"
+            f" and fallback {fallback}."
+        )
+
+    def model_stem(self, incident_index, photo_index):
+        if self.photoionisation_n_models == 1:
+            return f"{incident_index}"
+        return f"{incident_index}_{photo_index}"
+
+    def model_base_path(self, incident_index, photo_index):
+        return self.output_dir / self.model_stem(incident_index, photo_index)
+
+    def artifact_path(self, incident_index, photo_index, extension):
+        return (
+            self.output_dir
+            / f"{self.model_stem(incident_index, photo_index)}.{extension}"
+        )
+
+    def artifact_exists(
+        self,
+        incident_index,
+        photo_index,
+        extension,
+        min_bytes=100,
+    ):
+        path = self.artifact_path(incident_index, photo_index, extension)
+        return path.is_file() and path.stat().st_size >= min_bytes
+
+
+def ingest_sobol_outputs(
+    locator, spec_names=("total", "transmitted", "nebular")
+):
+    """Collect Sobol Cloudy outputs and append them to the HDF5 grid."""
+
+    metadata = locator.metadata
+    grid_path = metadata.get("grid_hdf5")
+    if grid_path is None:
+        raise ValueError(
+            "Sobol metadata missing 'grid_hdf5'; "
+            "cannot locate destination file"
+        )
+    grid_path = Path(grid_path)
+    if not grid_path.is_absolute():
+        grid_path = locator.run_dir / grid_path
+    if not grid_path.exists():
+        raise FileNotFoundError(
+            f"Sobol HDF5 file not found at {grid_path}. Did workflow.py run?"
+        )
+
+    with h5py.File(grid_path, "r") as hf:
+        if "n_samples" not in hf.attrs:
+            raise ValueError(
+                "Sobol HDF5 file missing 'n_samples' attribute; "
+                "cannot gather outputs"
+            )
+        n_samples = int(hf.attrs["n_samples"])
+        reference_log10 = hf.attrs.get("reference_log10_specific_ionising_lum")
+        log10q_samples = (
+            hf["log10Q_samples"][:] if "log10Q_samples" in hf else None
+        )
+
+    cloudy_version = metadata.get("cloudy_version")
+    if cloudy_version is None:
+        raise ValueError(
+            "Sobol metadata missing 'cloudy_version'; "
+            "cannot select Cloudy reader"
+        )
+    if cloudy_version.split(".")[0] in {"c23", "c25"}:
+        cloudy = cloudy23
+    elif cloudy_version.split(".")[0] == "c17":
+        cloudy = cloudy17
+    else:
+        raise ValueError(
+            f"Unknown Cloudy version '{cloudy_version}' for Sobol outputs"
+        )
+
+    lam = cloudy.read_wavelength(str(locator.model_base_path(0, 0)))
+    n_lambda = len(lam)
+
+    print(f"Collecting {n_samples} Sobol samples from {locator.run_dir}")
+    print(f"Cloudy version: {cloudy_version}")
+    print(f"Wavelength grid size: {n_lambda}")
+    print(f"Spectra to save: {spec_names}")
+
+    spectra = {name: np.zeros((n_samples, n_lambda)) for name in spec_names}
+    normalisation = np.ones(n_samples)
+    missing = []
+
+    for sample_index in range(n_samples):
+        cont_path = locator.artifact_path(sample_index, 0, "cont")
+        if not cont_path.exists():
+            missing.append(sample_index)
+            continue
+
+        spec_dict = cloudy.read_continuum(
+            str(locator.model_base_path(sample_index, 0)),
+            return_dict=True,
+        )
+
+        scale = 1.0
+        if log10q_samples is not None and reference_log10 is not None:
+            sed = Sed(
+                lam=lam * Angstrom,
+                lnu=spec_dict["incident"] * erg / s / Hz,
+            )
+            ionising_photon_production_rate = (
+                sed.calculate_ionising_photon_production_rate(
+                    ionisation_energy=13.6 * eV,
+                    limit=100,
+                )
+            )
+            scale = 10 ** (
+                reference_log10 - np.log10(ionising_photon_production_rate)
+            )
+            normalisation[sample_index] = scale
+
+        for spec_name in spec_names:
+            if spec_name not in spec_dict:
+                raise ValueError(
+                    f"Spectrum '{spec_name}' unavailable "
+                    "in continuum dictionary"
+                )
+            spectra[spec_name][sample_index, :] = spec_dict[spec_name] * scale
+
+    if missing:
+        preview = ", ".join(str(idx) for idx in missing[:10])
+        print(
+            f"Warning: {len(missing)} Sobol spectra missing "
+            f"from output/: {preview}"
+        )
+
+    with h5py.File(grid_path, "a") as hf:
+        spectra_group = hf.require_group("spectra")
+        for spec_name, data in spectra.items():
+            if spec_name in spectra_group:
+                del spectra_group[spec_name]
+            dset = spectra_group.create_dataset(
+                spec_name,
+                data=data,
+                compression="gzip",
+            )
+            dset.attrs["Units"] = "erg/s/Hz"
+
+        if "wavelength" in hf:
+            del hf["wavelength"]
+        lam_set = hf.create_dataset("wavelength", data=lam, compression="gzip")
+        lam_set.attrs["Units"] = "Angstrom"
+
+        hf.attrs["n_wavelength"] = n_lambda
+        hf.attrs["spec_names"] = list(spec_names)
+
+    print(
+        f"Successfully added {n_samples} Sobol spectra "
+        f"({', '.join(spec_names)}) to {grid_path}"
+    )
 
 
 def create_empty_grid(
@@ -298,42 +498,37 @@ def get_grid_properties_hf(hf, verbose=True):
 
 
 def check_if_failed(
-    model_to_check,
-    extensions_to_check=["emergent_elin"],
+    locator,
+    incident_index,
+    photoionisation_index,
+    extensions_to_check=("emergent_elin",),
 ):
     """
     Function to check if a particular model has failed.
 
     Args:
-        model_to_check (str)
-            The model, including path, to check.
         extensions_to_check (list)
             List of file extensions to check to check for each model.
 
     """
-
-    failed = False
-
-    # Check if files exist
-    for ext in extensions_to_check:
-        if not os.path.isfile(model_to_check + "." + ext):
-            failed = True
-
-    # If they exist also check they have size >0
-    if not failed:
-        for ext in extensions_to_check:
-            if os.path.getsize(model_to_check + "." + ext) < 100:
-                failed = True
-
-    return failed
+    extensions = extensions_to_check or ("emergent_elin",)
+    for ext in extensions:
+        if not locator.artifact_exists(
+            incident_index,
+            photoionisation_index,
+            ext,
+        ):
+            return True
+    return False
 
 
 def check_cloudy_runs(
+    locator,
     new_grid_name,
     cloudy_dir,
     incident_index_list,
     photoionisation_index_list,
-    extensions_to_check=["emergent_elin"],
+    extensions_to_check=("emergent_elin",),
     machine=None,
     cloudy_executable_path=None,
 ):
@@ -341,8 +536,10 @@ def check_cloudy_runs(
     Check that all the cloudy runs have run properly.
 
     Args:
+        locator (CloudyOutputLocator)
+            Helper providing access to Cloudy artifacts for each model.
         new_grid_name
-            The name of the new grid (also the subdirectory wher the cloudy
+            The name of the new grid (also the subdirectory where the Cloudy
             runs are stored)
         cloudy_dir (str)
             Parent directory for the cloudy runs.
@@ -367,30 +564,26 @@ def check_cloudy_runs(
         for photoionisation_index, photoionisation_index_tuple in enumerate(
             photoionisation_index_list
         ):
-            # The model to check, including the full path
-            model_to_check = (
-                f"{cloudy_dir}/{new_grid_name}/"
-                f"{incident_index}/{photoionisation_index}"
-            )
-
             # Check if it failed
             failed = check_if_failed(
-                model_to_check,
+                locator,
+                incident_index,
+                photoionisation_index,
                 extensions_to_check=extensions_to_check,
             )
 
             # Record models that have failed
             if failed:
                 # The path to the cloudy out file
-                outfile = (
-                    f"{cloudy_dir}/{new_grid_name}/"
-                    f"{incident_index}/{photoionisation_index}.out"
-                )
-
-                # Grab the final line of
-                with open(outfile, "r") as file:
-                    lines = file.readlines()
-                    last_line = lines[-1].strip()
+                outfile = locator.model_base_path(
+                    incident_index, photoionisation_index
+                ).with_suffix(".out")
+                if outfile.exists():
+                    with open(outfile, "r") as file:
+                        lines = file.readlines()
+                        last_line = lines[-1].strip()
+                else:
+                    last_line = "Cloudy .out file not retained"
 
                 # Append the incident and photoionisation index to an array
                 failed_list.append([incident_index, photoionisation_index])
@@ -433,8 +626,7 @@ def check_cloudy_runs(
 
 def add_spectra(
     new_grid,
-    new_grid_name,
-    cloudy_dir,
+    locator,
     incident_index_list,
     photoionisation_index_list,
     new_shape,
@@ -447,10 +639,8 @@ def add_spectra(
     Args:
         new_grid (GridFile)
             The grid file to add the spectra to.
-        new_grid_name (str)
-            The name of the new grid.
-        cloudy_dir (str)
-            Parent directory for the cloudy runs.
+        locator (CloudyOutputLocator)
+            Object used to resolve Cloudy artifact paths.
         incident_index_list (list)
             List of incident grid points
         photoionisation_index_list (list)
@@ -472,14 +662,16 @@ def add_spectra(
     )
 
     # ... and use to select the correct module.
-    if cloudy_version.split(".")[0] == "c23":
+    if cloudy_version.split(".")[0] in {"c23", "c25"}:
         cloudy = cloudy23
     elif cloudy_version.split(".")[0] == "c17":
         cloudy = cloudy17
+    else:
+        raise ValueError(f"Unknown Cloudy version '{cloudy_version}'")
 
     # Read first spectra from the first grid point to get length and
     # wavelength grid.
-    lam = cloudy.read_wavelength(f"{cloudy_dir}/{new_grid_name}/0/0")
+    lam = cloudy.read_wavelength(str(locator.model_base_path(0, 0)))
 
     # Write the spectra names... for some reason (not sure why since .keys()
     # gives the same result)
@@ -511,15 +703,13 @@ def add_spectra(
                 photoionisation_index_tuple
             )
 
-            # The infile
-            infile = (
-                f"{cloudy_dir}/{new_grid_name}/"
-                f"{incident_index}/{photoionisation_index}"
-            )
-
             # Check to see if the model failed or not, using the default
             # extensions
-            failed = check_if_failed(infile)
+            failed = check_if_failed(
+                locator,
+                incident_index,
+                photoionisation_index,
+            )
 
             # If the model has failed save the spectra as an array of zeros
             if failed:
@@ -532,7 +722,14 @@ def add_spectra(
 
             else:
                 # Read the continuum file containing the spectra
-                spec_dict = cloudy.read_continuum(infile, return_dict=True)
+                spec_dict = cloudy.read_continuum(
+                    str(
+                        locator.model_base_path(
+                            incident_index, photoionisation_index
+                        )
+                    ),
+                    return_dict=True,
+                )
 
                 # Calculate the specific ionising photon luminosity and use
                 # this to renormalise the spectrum.
@@ -590,8 +787,7 @@ def add_spectra(
 
 def add_lines(
     new_grid,
-    new_grid_name,
-    cloudy_dir,
+    locator,
     incident_index_list,
     photoionisation_index_list,
     new_shape,
@@ -605,10 +801,8 @@ def add_lines(
     Arguments:
         new_grid (GridFile)
             The grid file to add the spectra to.
-        new_grid_name (str)
-            The name of the new grid.
-        cloudy_dir (str)
-            Parent directory for the cloudy runs.
+        locator (CloudyOutputLocator)
+            Object used to resolve Cloudy artifact paths and linelist.
         incident_index_list (list)
             List of incident grid points
         photoionisation_index_list (list)
@@ -635,13 +829,15 @@ def add_lines(
     )
 
     # ... and use to select the correct module.
-    if cloudy_version.split(".")[0] == "c23":
+    if cloudy_version.split(".")[0] in {"c23", "c25"}:
         cloudy = cloudy23
     elif cloudy_version.split(".")[0] == "c17":
         cloudy = cloudy17
+    else:
+        raise ValueError(f"Unknown Cloudy version '{cloudy_version}'")
 
     # Open the first linelist and use it to populate the keys
-    with open(f"{cloudy_dir}/{new_grid_name}/0/linelist.dat") as file:
+    with open(locator.linelist_path) as file:
         linelist = file.readlines()
         # strip escape character
         lines_to_include = [
@@ -706,15 +902,17 @@ def add_lines(
                 photoionisation_index_tuple
             )
 
-            # The infile
-            infile = (
-                f"{cloudy_dir}/{new_grid_name}/"
-                f"{incident_index}/{photoionisation_index}"
+            base_path = str(
+                locator.model_base_path(incident_index, photoionisation_index)
             )
 
             # Check to see if the model failed or not, using the default
             # extensions
-            failed = check_if_failed(infile)
+            failed = check_if_failed(
+                locator,
+                incident_index,
+                photoionisation_index,
+            )
 
             # If the model has failed save the luminosities as an array of
             # zeros
@@ -733,14 +931,8 @@ def add_lines(
             else:
                 # Read line quantities
                 ids, line_wavelengths, luminosities = cloudy.read_linelist(
-                    infile, extension="emergent_elin"
+                    base_path, extension="emergent_elin"
                 )
-
-                # re-order by wavelength
-                sorted_indices = np.argsort(line_wavelengths)
-                ids = ids[sorted_indices]
-                luminosities = luminosities[sorted_indices]
-                line_wavelengths = line_wavelengths[sorted_indices]
 
                 # If we're on the first grid point save the wavelength grid
                 if (incident_index == 0) and (photoionisation_index == 0):
@@ -757,10 +949,15 @@ def add_lines(
 
                 # Otherwise set the normalisation to unity
                 else:
-                    normalisation = 1.0
-
-                # Calculate line luminosity and save it. Uses normalisation
-                # from spectra. Units are erg/s
+                    # Read line quantities
+                    ids, line_wavelengths, luminosities = cloudy.read_linelist(
+                        str(
+                            locator.model_base_path(
+                                incident_index, photoionisation_index
+                            )
+                        ),
+                        extension="emergent_elin",
+                    )
                 lines["luminosity"][indices] = luminosities * normalisation
 
                 # Calculate continuum luminosities. Units are erg/s/Hz.
@@ -820,6 +1017,16 @@ if __name__ == "__main__":
         "--cloudy-executable-path", type=str, required=False, default=None
     )
 
+    parser.add_argument(
+        "--cloudy-grid-name",
+        type=str,
+        required=False,
+        help=(
+            "Override the derived Cloudy output subdirectory name. "
+            "Required for Sobol runs."
+        ),
+    )
+
     # Should we include the spectra in the grid?
     parser.add_argument(
         "--include-spectra",
@@ -827,6 +1034,16 @@ if __name__ == "__main__":
         help="Should the spectra be included in the grid?",
         default=True,
         required=False,
+    )
+
+    parser.add_argument(
+        "--sobol-spec-names",
+        type=str,
+        nargs="+",
+        required=False,
+        default=["total", "transmitted", "nebular"],
+        choices=["total", "nebular", "transmitted", "incident"],
+        help="Spectra to store when ingesting Sobol outputs.",
     )
 
     # Should we normalise by the specific ionising luminosity?
@@ -859,44 +1076,81 @@ if __name__ == "__main__":
     print(cloudy_param_file)
     print(extra_cloudy_param_file)
 
-    # Check for extensions
-    # Create _file and _name versions (with and w/o extensions)
-
-    if cloudy_param_file.split(".")[-1] != "yaml":
-        cloudy_param_name = cloudy_param_file
-        cloudy_param_file += ".yaml"
-    else:
-        cloudy_param_name = "".join(cloudy_param_file.split(".")[:-1])
+    # Normalise parameter/grid filenames while preserving decimal points etc.
+    cloudy_param_path = Path(cloudy_param_file)
+    if cloudy_param_path.suffix != ".yaml":
+        cloudy_param_path = cloudy_param_path.with_suffix(".yaml")
+    cloudy_param_file = str(cloudy_param_path)
+    cloudy_param_name = cloudy_param_path.stem
+    cloudy_param_dir = (
+        str(cloudy_param_path.parent)
+        if str(cloudy_param_path.parent) != "."
+        else "params"
+    )
+    cloudy_param_dir_path = Path(cloudy_param_dir)
+    if (
+        not cloudy_param_dir_path.is_absolute()
+        and not cloudy_param_dir_path.exists()
+    ):
+        candidate = Path(__file__).resolve().parent / cloudy_param_dir_path
+        if candidate.exists():
+            cloudy_param_dir = str(candidate)
+        else:
+            fallback = Path(__file__).resolve().parent / "params"
+            if fallback.exists():
+                cloudy_param_dir = str(fallback)
 
     if extra_cloudy_param_file is not None:
-        if extra_cloudy_param_file.split(".")[-1] != "yaml":
-            extra_cloudy_param_name = extra_cloudy_param_file
-            extra_cloudy_param_file += ".yaml"
-        else:
-            extra_cloudy_param_name = "".join(
-                extra_cloudy_param_file.split(".")[:-1]
+        extra_param_path = Path(extra_cloudy_param_file)
+        if extra_param_path.suffix != ".yaml":
+            extra_param_path = extra_param_path.with_suffix(".yaml")
+        extra_cloudy_param_file = str(extra_param_path)
+        extra_cloudy_param_name = extra_param_path.stem
+        extra_cloudy_param_dir = (
+            str(extra_param_path.parent)
+            if str(extra_param_path.parent) != "."
+            else cloudy_param_dir
+        )
+        extra_cloudy_param_dir_path = Path(extra_cloudy_param_dir)
+        if (
+            not extra_cloudy_param_dir_path.is_absolute()
+            and not extra_cloudy_param_dir_path.exists()
+        ):
+            candidate = (
+                Path(__file__).resolve().parent / extra_cloudy_param_dir_path
             )
+            if candidate.exists():
+                extra_cloudy_param_dir = str(candidate)
+            else:
+                extra_cloudy_param_dir = cloudy_param_dir
 
-    if incident_grid_name.split(".")[-1] != "hdf5":
-        incident_grid_file = incident_grid_name + ".hdf5"
-    else:
-        incident_grid_file = incident_grid_name
-        incident_grid_name = "".join(incident_grid_name.split(".")[:-1])
+    incident_grid_path = Path(incident_grid_name)
+    if incident_grid_path.suffix != ".hdf5":
+        incident_grid_path = incident_grid_path.with_suffix(".hdf5")
+    incident_grid_file = incident_grid_path.name
+    incident_grid_name = incident_grid_path.stem
 
     # Get name of new grid (concatenation of incident_grid and cloudy
-    # parameter file)
-    new_grid_name = f"{incident_grid_name}_cloudy-{cloudy_param_name}"
+    # parameter file) unless the user provides an explicit override.
+    derived_grid_name = f"{incident_grid_name}_cloudy-{cloudy_param_name}"
 
-    # If an additional parameter set append this to the new grid name
     if extra_cloudy_param_file:
-        # Ignore the directory part if it exists
         extra_cloudy_param_name = extra_cloudy_param_name.split("/")[-1]
-        # Append the new_grid_name with the additional name
-        new_grid_name += "-" + extra_cloudy_param_name
+        derived_grid_name += "-" + extra_cloudy_param_name
 
+    new_grid_name = args.cloudy_grid_name or derived_grid_name
     new_grid_file = new_grid_name + ".hdf5"
     print(cloudy_param_name, cloudy_param_file)
     print(new_grid_name, new_grid_file)
+
+    locator = CloudyOutputLocator(cloudy_dir, new_grid_name)
+    sampling_method = locator.metadata.get("sampling_method", "incident")
+    if sampling_method == "sobol":
+        ingest_sobol_outputs(
+            locator,
+            spec_names=tuple(args.sobol_spec_names),
+        )
+        raise SystemExit(0)
 
     # Open the incident grid using synthesizer
     incident_grid = Grid(
@@ -923,14 +1177,20 @@ if __name__ == "__main__":
 
     # Load the cloudy parameters you are going to run
     fixed_photoionisation_params, variable_photoionisation_params = (
-        get_cloudy_params(cloudy_param_file)
+        get_cloudy_params(
+            Path(cloudy_param_file).name,
+            param_dir=cloudy_param_dir,
+        )
     )
 
     # If an additional parameter set is provided supersede the default
     # parameters with these.
     if extra_cloudy_param_file:
         (photoionisation_fixed_params_, photoionisation_variable_params_) = (
-            get_cloudy_params(extra_cloudy_param_file)
+            get_cloudy_params(
+                Path(extra_cloudy_param_file).name,
+                param_dir=extra_cloudy_param_dir,
+            )
         )
         fixed_photoionisation_params |= photoionisation_fixed_params_
         variable_photoionisation_params |= photoionisation_variable_params_
@@ -964,6 +1224,8 @@ if __name__ == "__main__":
         photoionisation_index_list = [[]]
         photoionisation_shape = ()
 
+    locator.photoionisation_n_models = int(photoionisation_n_models)
+
     # Define the axes and values of the output grid
     new_axes = incident_axes
     new_axes_values = incident_axes_values
@@ -991,9 +1253,16 @@ if __name__ == "__main__":
         fixed_photoionisation_params,
     )
 
+    locator = CloudyOutputLocator(
+        cloudy_dir,
+        new_grid_name,
+        photoionisation_n_models=photoionisation_n_models,
+    )
+
     # Check cloudy runs and potentially replace them by the nearest grid point
     # if they fail.
     number_of_failed_models = check_cloudy_runs(
+        locator,
         new_grid_name,
         cloudy_dir,
         incident_index_list,
@@ -1010,8 +1279,7 @@ if __name__ == "__main__":
     if include_spectra:
         lam, spectra = add_spectra(
             new_grid,
-            new_grid_name,
-            cloudy_dir,
+            locator,
             incident_index_list,
             photoionisation_index_list,
             new_shape,
@@ -1027,8 +1295,7 @@ if __name__ == "__main__":
     # Now add lines
     add_lines(
         new_grid,
-        new_grid_name,
-        cloudy_dir,
+        locator,
         incident_index_list,
         photoionisation_index_list,
         new_shape,

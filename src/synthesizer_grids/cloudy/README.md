@@ -4,49 +4,52 @@ This set of scripts facilitates the creation of new sets of grids with photoioni
 
 There are three steps to the process:
 
-- First, we need to create the input files for `cloudy`. There are two approaches here: using an incident grid, or generating spectra directly from `cloudy`.
-- Next, we use `run_cloudy.py` to run `cloudy`.
+- First, define a workflow configuration (incident grid or Sobol sampling) and call `run_workflow` to emit the metadata, linelists, and (for Sobol) the HDF5 parameter grid that downstream steps consume.
+- Next, use `run_cloudy.py` directly or via the submission helpers. The script now generates all Cloudy inputs on-the-fly for the requested incident/photoionisation indices before executing Cloudy.
 - Finally, `create_synthesizer_grid.py` gathers the `cloudy` outputs and produces a new grid.
 
-The details of each of these steps are described below.
+### Preparing Cloudy metadata
 
-### Creating the cloudy input grid
+`workflow.py` consolidates all pre-run preparation. The orchestrator reads an incident grid (or builds Sobol samples from it), resolves the Cloudy parameter files, copies the requested linelist into each incident directory, and writes a `grid_parameters.yaml` metadata file together with any required Sobol HDF5 datasets. No Cloudy `.in` files are generated at this stage; those are produced at runtime by `run_cloudy.py`.
 
-The first step in the process is the creation of a grid of `cloudy` input files, including the incident spectra, the configuration file, and the list of lines to save. There are two potential approaches to creating cloudy input grids, using an **incident grid** (for example from an SPS model as above) or generating the grid using a cloudy shape command (e.g. blackbody). These scearnios are handled by two separate modules. 
+Two entry modes are supported:
 
-#### Using an incident grid
+* **Incident grid sampling** – enumerate every point in an existing incident grid and combine it with a set of fixed/variable Cloudy parameters.
+* **Sobol sampling** – draw continuous samples from the ranges defined in a YAML file and interpolate the incident spectra on-the-fly.
 
-To use an incident grid we can run `create_cloudy_input_grid.py` providing the incident grid name, grid directory, output directory, `cloudy` parameter file(s), a machine, and the path to the `cloudy` executable as follows:
+Example usage (see also `examples/run_incident_workflow_example.py` for a
+ready-to-run script):
 
+```python
+from synthesizer_grids.cloudy.config import (
+  CloudyParameterSet,
+  CloudyWorkflowConfig,
+  IncidentSamplerConfig,
+)
+from synthesizer_grids.cloudy.workflow import run_workflow
+
+params = CloudyParameterSet.from_files("params/c23.01-sps-grid.yaml")
+config = CloudyWorkflowConfig(
+  mode="incident",
+  incident=IncidentSamplerConfig(
+    incident_grid="bc03_salpeter",
+    incident_grid_dir="/path/to/grids",
+    cloudy_output_dir="/path/to/cloudy/outputs",
+    parameter_files=params,
+  ),
+)
+run_workflow(config)
 ```
-create_cloudy_input_grid.py \
-    --incident-grid=test \
-    --grid-dir=/path/to/grids \
-    --cloudy-output-dir=/path/to/cloudy/outputs \
-    --cloudy-paramfile=c23.01-sps \
-    --cloudy-paramfile-extra=test_suite/reference_ionisation_parameter \
-    --machine=machine \
-    --cloudy-executable-path=/path/to/cloudy/executable
-```
 
-##### Parameter files
+Switching to Sobol sampling requires instantiating `SobolSamplerConfig` instead and pointing at the desired parameter YAML plus sample count/seed. Ready-made Cloudy parameter files live in the `params/` directory and can be combined using `CloudyParameterSet.from_files` to override defaults. See `examples/run_sobol_workflow_example.py` for a CLI template.
 
-An integral part of this process are the provision of a parameter file(s) which contains the photoionisation parameters. These can either be single values or lists (arrays). When a quantity is an array this adds an additional axis to the reprocessed grid. A range of ready-made parameter files are available for a range of scnearios in the `params/` directory.
-
-It is possible to provide two parameter files, for example a default set of parameters and then a file containing a limited set of parameters to be changed. This approach is used to build a *photoionisation test suite*; this is a series of parameter files used to generate grids where we systematically vary a photoionisation parameter (e.g. the hydrogen density or ionisation parameter) or flag. 
-
-##### Machines
-
-If `--machine` is specified, and it is one that is recognised (e.g. Sussex's artemis system), then a job submission script will be produced. The will be an array job with each job being a single incident grid point, i.e. each jobs runs all the photoionisation models. In most cases this will be a handful of models, but for comprehensive grids this could be hundreds or even thousands of cloudy models that will take sometime to run.
-
-#### Using a cloudy shape command
-
-As an alternative we can create a grid directly from using one of `cloudy`'s in-built shape commands (e.g. blackbody). To do this we need to provide a yaml file containing the name of the model (at the moment this is limited to `blackbody` and `agn`) with all the parameters, including any that are to be varied as a list. **NOTE**: at present this is unlikely to be working correctly.
+The workflow optionally triggers one of the submission helpers (see `submission_scripts.py`) to emit a SLURM script that already references `run_cloudy.py`.
 
 ### Run `cloudy`
 
-Next, we can use the `run_cloudy.py` to automatically run either a single model, all models, or all models for a given photoionisation grid point (the suggested behaviour for coupling with a HPC array job). This behaviour depends on the choice of --incident-index and --photoionisation-index.
-Setting both will run a single model, setting only `--incident-index` will run all models at a particularly incident grid point, while setting neither will result in all models being run in serial (not recommended except for tiny grids).
+Next, we can use `run_cloudy.py` to automatically run either a single model, all models, or all models for a given photoionisation grid point (the suggested behaviour for coupling with an HPC array job). The script now regenerates the Cloudy `.in/.yaml` files on-the-fly for every requested index using the metadata emitted by `workflow.py`, runs Cloudy, moves the produced spectra into `output/`, and deletes transient files on success.
+
+This behaviour depends on the choice of `--incident-index` and `--photoionisation-index`. Setting both will run a single model, setting only `--incident-index` will run all models at a particular incident grid point, while setting neither will result in all models being run in serial (not recommended except for tiny grids). Alternatively, pass `--list-file` and `--list-index` to execute arbitrary subsets.
 
 ```
 python run_cloudy.py \

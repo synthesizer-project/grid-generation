@@ -5,13 +5,12 @@ cloudy_version: c25.00
 
 # ABUNDANCE PATTERN AND DEPLETION
 reference_abundance: GalacticConcordance # the reference abundance pattern to assume
-alpha_enhancement: [-0.2, 1.0, 'linear']  # alpha element enhancement
-# abundance_scalings:
-#   nitrogen_to_oxygen: [-2.0, -0.5, 'linear'] # scaling for Nitrogen, either float relative to Solar or string defining the in-built function to use
-#   carbon_to_oxygen: [-1.5, 0.0, 'linear'] # scaling for Carbon, either float relative to Solar or string defining the in-built function to use
-  
-depletion_model: None # Jenkins2009_Gunasekera2021 # the depletion model.
-depletion_scale: 0.5 # [0.0, 1.0, 'linear'] # the depletion scale factor. For linearly scaled depletion models (e.g. CloudyClassic, Gutkin2016) this is by default 1.0. For Jenkins2009 this should be 0.5 (fstar).
+alpha_enhancement: 0.0  # alpha element enhancement
+abundance_scalings: 
+  nitrogen: GalacticConcordance
+  carbon: GalacticConcordance
+depletion_model: Jenkins2009_Gunasekera2021 # the depletion model.
+depletion_scale: 0.5 # the depletion scale factor. For linearly scaled depletion models (e.g. CloudyClassic, Gutkin2016) this is by default 1.0. For Jenkins2009 this should be 0.5 (fstar).
 
 # GRAINS
 grains: Orion # include ISM grains
@@ -24,10 +23,11 @@ ionisation_parameter_model: ref  # which ionisation parameter model to use. `ref
 reference_age: 1000000.0
 reference_metallicity: 0.01
 reference_ionisation_parameter: 0.01
-ionisation_parameter: [0.0001, 0.1, 'log']  
+ionisation_parameter: 0.01  # fallback/legacy value; ref model uses reference_ionisation_parameter
 
 # DENSITY
-hydrogen_density: [1.0e+1, 1.0e+4, 'log']
+hydrogen_density: 1.0e+3
+constant_density: True
 
 # STOPPING CRITERIA
 stop_T: 500  # stopping temperature
@@ -39,11 +39,11 @@ T_floor: 100  # lower gas temperature floor
 cosmic_rays: true  # flag for inclusion of cosmic ray heating
 # covering_factor: 1.0  #
 radius: 0.01  # log of the radius of the cloud, in parsecs
-turbulence: [10, 200, 'linear']  # turbulence
+turbulence: 100 # turbulence
 z: 0.0  # redshift
 
 # OUTPUT COMMANDS
 resolution: 1.0 # energy resolution relative to the default
-output_cont: True
-output_linelist: create_linelist/linelist-standard.dat
+output_cont: true
+output_linelist: linelist-standard.dat
 iterate_to_convergence: true
