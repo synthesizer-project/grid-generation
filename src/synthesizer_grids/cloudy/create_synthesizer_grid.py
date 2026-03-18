@@ -91,7 +91,7 @@ def create_empty_grid(
             List of the new axes.
         new_axes_values (dict):
             Dictionary of the new axes values (including incident).
-        photoionisation_params (dict):
+        photoionisation_parameters (dict):
             Dictionary of photoionisation modelling parameters.
 
     Returns:
