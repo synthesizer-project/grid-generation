@@ -73,6 +73,7 @@ def create_empty_grid(
     grid_dir,
     incident_grid_name,
     new_grid_name,
+    new_axes,
     new_axes_values,
     photoionisation_parameters,
 ):
@@ -86,8 +87,10 @@ def create_empty_grid(
             Name of the incident grid file we ran through cloudy.
         new_grid_name (str):
             Name of the new grid file.
+        new_axes (list):
+            List of the new axes.
         new_axes_values (dict):
-            Dictionary of the new axes values.
+            Dictionary of the new axes values (including incident).
         photoionisation_params (dict):
             Dictionary of photoionisation modelling parameters.
 
@@ -118,9 +121,6 @@ def create_empty_grid(
 
     # Copy over the model metadata
     out_grid.write_model_metadata(incident_grid._model_metadata)
-
-    # Set a list of the axes including the incident and new grid axes
-    new_axes = list(new_axes_values.keys())
 
     # Get properties of the grid
     (
@@ -225,13 +225,17 @@ def create_empty_grid(
         # If we have units in the grid_params dictionary already then use
         # these, otherwise use the axes_units dictionary, if we don't have
         # units for the axis then raise an error.
+
+        # Determine log_on_read safety
+        log_on_read = log_on_read_dict.get(axis, False)
+
         if has_units(new_axes_values[axis]):
+            description = f"grid axes {axis} (introduced during cloudy run)"
             out_grid.write_dataset(
                 key=f"axes/{pluralised_axis}",
                 data=new_axes_values[axis],
-                description=f"grid axes {pluralised_axis} (introduced during"
-                "cloudy run)",
-                log_on_read=log_on_read_dict[axis],
+                description=description,
+                log_on_read=log_on_read,
             )
 
         # Ok, maybe its just a common axis that we have units for
@@ -243,7 +247,7 @@ def create_empty_grid(
                 key=f"axes/{pluralised_axis}",
                 data=values_with_units,
                 description=f"grid axes {axis} (introduced during cloudy run)",
-                log_on_read=False,
+                log_on_read=log_on_read,
             )
 
         else:
@@ -941,8 +945,8 @@ if __name__ == "__main__":
     # If we have photoionisation parameters that vary we need to calculate the
     # model list
     if len(variable_photoionisation_params) > 0:
-        # doesn't matter about the ordering of these
-        photoionisation_axes = list(variable_photoionisation_params.keys())
+        # Sort the axes to ensure consistent ordering
+        photoionisation_axes = sorted(variable_photoionisation_params.keys())
 
         # get properties of the photoionsation grid
         (
@@ -965,8 +969,8 @@ if __name__ == "__main__":
         photoionisation_shape = ()
 
     # Define the axes and values of the output grid
-    new_axes = incident_axes
-    new_axes_values = incident_axes_values
+    new_axes = list(incident_axes)
+    new_axes_values = incident_axes_values.copy()
 
     new_shape = tuple(incident_shape) + tuple(photoionisation_shape)
     if verbose:
@@ -987,6 +991,7 @@ if __name__ == "__main__":
         grid_dir,
         incident_grid_name,
         new_grid_file,
+        new_axes,
         new_axes_values,
         fixed_photoionisation_params,
     )
