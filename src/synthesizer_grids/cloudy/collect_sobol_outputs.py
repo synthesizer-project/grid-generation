@@ -81,12 +81,11 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
     first_spec_file = available[0]
 
     first_data = np.loadtxt(first_spec_file)
-    nu = first_data[:, 0]
-    n_lambda = len(nu)
+    n_lambda = first_data.shape[0]
 
-    # Convert frequency to wavelength (Angstrom)
-    c_angstrom_hz = 2.99792458e18
-    lam = c_angstrom_hz / nu
+    # The Cloudy .cont file is saved with 'units Angstroms' so column 0 is
+    # already wavelength in Angstroms — use it directly.
+    lam = first_data[:, 0]
 
     print(f"Wavelength grid size: {n_lambda}")
     print(f"Spectra to save: {spec_names}")
@@ -105,20 +104,19 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
             missing_files.append(i)
             continue
 
-        # Columns: nu, incident, transmitted, nebular, total, linecont
+        # Columns: wavelength, incident, transmitted, nebular, total, linecont
         data = np.loadtxt(spec_file)
-        nu_sample = data[:, 0]
 
         # Verify wavelength grid consistency
-        if len(nu_sample) != n_lambda:
+        if data.shape[0] != n_lambda:
             print(
-                f"Warning: Sample {i} has {len(nu_sample)} wavelength "
+                f"Warning: Sample {i} has {data.shape[0]} wavelength "
                 f"points, expected {n_lambda}"
             )
             continue
 
-        # Columns: 0=nu, 1=incident, 2=transmitted, 3=nebular, 4=total,
-        # 5=linecont
+        # Columns: 0=wavelength(Å), 1=incident, 2=transmitted, 3=nebular,
+        # 4=total, 5=linecont
         col_map = {
             "incident": 1,
             "transmitted": 2,
@@ -136,6 +134,15 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
             f"\nWarning: {len(missing_files)} missing spectra files: "
             f"{missing_files[:10]}..."
         )
+
+    # Build boolean mask: True for samples with successfully collected spectra
+    valid_samples = np.ones(n_samples, dtype=bool)
+    valid_samples[missing_files] = False
+    n_valid = int(valid_samples.sum())
+    print(
+        f"\nValid samples: {n_valid}/{n_samples} "
+        f"({len(missing_files)} failed runs excluded)"
+    )
 
     print(f"\nAdding spectra to {output_file}")
 
@@ -169,8 +176,14 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
             del hf["wavelength"]
         hf.create_dataset("wavelength", data=lam, compression="gzip")
 
+        # Save valid samples mask
+        if "valid_samples" in hf:
+            del hf["valid_samples"]
+        hf.create_dataset("valid_samples", data=valid_samples)
+
         # Update metadata
         hf.attrs["n_wavelength"] = n_lambda
+        hf.attrs["n_valid_samples"] = n_valid
         hf.attrs["spec_names"] = list(spec_names)
 
     print(
