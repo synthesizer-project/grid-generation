@@ -11,9 +11,7 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from synthesizer.abundances import (
-    Abundances,
-)
+from synthesizer.abundances import Abundances, depletion_models
 from synthesizer.exceptions import InconsistentParameter
 from synthesizer.grid import Grid
 from synthesizer.photoionisation import cloudy17, cloudy23
@@ -66,8 +64,39 @@ def create_cloudy_input(
         if len(k.split(".")) > 1:
             if k.split(".")[0] == "abundance_scalings":
                 kk = k.split(".")[1]
-                # convert to synthesizer standard
-                parameters["abundance_scalings"][kk] = v
+
+                if v is not None:
+                    # The value (v) here could be a bona fide string or number,
+                    # try to convert to a
+                    try:
+                        value = float(v)
+                    except ValueError:
+                        value = v
+
+                    # convert to synthesizer standard
+                    parameters["abundance_scalings"][kk] = value
+
+    # Initialise depletion model
+    if "depletion_model" in parameters.keys():
+        if parameters["depletion_model"] is None:
+            depletion_model = None
+        else:
+            if "depletion_scale" not in parameters.keys():
+                depletion_scale = 1.0
+            else:
+                depletion_scale = parameters["depletion_scale"]
+
+            depletion_model = getattr(
+                depletion_models, parameters["depletion_model"]
+            )(scale=depletion_scale)
+
+    else:
+        depletion_model = None
+
+    print(parameters["metallicities"])
+    print(parameters["reference_abundance"])
+    print(parameters["alpha_enhancement"])
+    print(parameters["abundance_scalings"])
 
     # Create synthesizer.Abundance object
     abundances = Abundances(
@@ -75,8 +104,7 @@ def create_cloudy_input(
         reference=parameters["reference_abundance"],
         alpha=parameters["alpha_enhancement"],
         abundances=parameters["abundance_scalings"],
-        depletion_model=parameters["depletion_model"],
-        depletion_scale=parameters["depletion_scale"],
+        depletion_model=depletion_model,
     )
 
     # Define the ionisation parameter and geometry
@@ -118,7 +146,7 @@ def create_cloudy_input(
     elif parameters["ionisation_parameter_model"] == "fixed":
         ionisation_parameter = parameters["ionisation_parameter"]
 
-    # If the model is not regnoised raise an exception
+    # If the model is not recognised raise an exception
     else:
         raise InconsistentParameter(
             f"""ERROR: do not understand U model choice:
