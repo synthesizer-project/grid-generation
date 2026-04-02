@@ -1,4 +1,4 @@
-# grid-generation
+# Synergizer
 
 This repository includes scripts and tools for generating grids for use by the [`synthesizer` synthetic observations package](https://github.com/synthesizer-project/synthesizer). There are two main modules: scripts for creating incident grids (grids containing the theoretical spectra produced by a model) and scripts for creating cloudy input files and then combining them to form a `synthesizer` grid.
 
