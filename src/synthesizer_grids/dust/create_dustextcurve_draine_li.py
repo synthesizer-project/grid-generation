@@ -28,7 +28,7 @@ import requests
 from matplotlib.axes import Axes
 from numpy.typing import NDArray
 from scipy.interpolate import interp1d
-from synthesizer.emission_models.attenuation import Calzetti2000, GrainsWD01
+from synthesizer.emission_models.attenuation import Calzetti2000, GrainModels
 from unyt import (
     Angstrom,
     cm,
@@ -417,7 +417,7 @@ def plot_extinction_curve(
         label="Calzetti+2000",
     )
     for c in ["MW", "LMC", "SMC"]:
-        curve_wd01 = GrainsWD01(model=c)
+        curve_wd01 = GrainModels(submodel=c)
         ax.plot(
             wav_angstrom,
             curve_wd01.get_tau(wav_angstrom * Angstrom),
@@ -490,7 +490,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--pah-centre",
         type=float,
-        default=0.005,
+        default=0.001,
         help="centre of PAH bin (micron)",
     )
     parser.add_argument(
@@ -503,7 +503,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--a-min-mrn",
         type=float,
-        default=0.005,
+        default=0.001,
         help="MRN a_min (micron) when using MRN",
     )
     parser.add_argument(
@@ -562,6 +562,9 @@ if __name__ == "__main__":
     dtg_grid = np.logspace(
         math.log10(DTG_MIN), math.log10(DTG_MAX), N_DTG, endpoint=True
     )
+
+    N_DTG += 1  # add one more point for DTG=0 (no dust)
+    dtg_grid = np.insert(dtg_grid, 0, 0.0)  # insert DTG=0 at the beginning
 
     # Material densities (g cm^-3)
     RHO_SIL = 3.5
