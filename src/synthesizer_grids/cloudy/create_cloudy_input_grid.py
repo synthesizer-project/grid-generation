@@ -32,6 +32,8 @@ def create_cloudy_input(
     parameters,
     delta_log10_specific_ionising_luminosity,
     output_directory,
+    cloudy_version,
+    shape_commands=None,
 ):
     """
     Function that creates a cloudy input script for a single photoionisation
@@ -51,6 +53,10 @@ def create_cloudy_input(
             of the source.
         output_directory (str):
             The output directory.
+        cloudy_version (module):
+            The synthesizer.photoionisation version (cloudy17 or cloudy23).
+        shape_commands (list, optional):
+            A list of strings containing cloudy shape commands.
     """
 
     # only add 'abundance_scalings' if its needed
@@ -139,11 +145,12 @@ def create_cloudy_input(
     with open(yaml_filename, "w") as file:
         yaml.dump(parameters_to_save, file, default_flow_style=False)
 
-    # Include shape command to read SED
-    shape_commands = ['table SED "input.sed" \n']
+    # If no shape commands are provided, assume we use the standard SED table
+    if shape_commands is None:
+        shape_commands = ['table SED "input.sed" \n']
 
     # Create cloudy input file
-    cloudy.create_cloudy_input(
+    cloudy_version.create_cloudy_input(
         str(photoionisation_index),
         shape_commands,
         abundances,
@@ -255,8 +262,8 @@ if __name__ == "__main__":
     # If we have photoionisation parameters that vary we need to calculate the
     # model list
     if len(variable_photoionisation_params) > 0:
-        # doesn't matter about the ordering of these
-        photoionisation_axes = list(variable_photoionisation_params.keys())
+        # Sort the axes to ensure consistent ordering
+        photoionisation_axes = sorted(variable_photoionisation_params.keys())
 
         # get properties of the photoionsation grid
         (
@@ -312,10 +319,9 @@ if __name__ == "__main__":
         yaml.dump(parameters_to_save, file, default_flow_style=False)
 
     # Also save the cloudy parameter file to the output folder
-    # TODO: FIX THIS!!!
-    # shutil.copy(cloudy_paramfile, f"{output_directory}/")
-    # if extra_cloudy_paramfile is not None:
-    #     shutil.copy(extra_cloudy_paramfile, f"{output_directory}/")
+    shutil.copy(f"params/{cloudy_paramfile}", f"{output_directory}/")
+    if extra_cloudy_paramfile is not None:
+        shutil.copy(f"params/{extra_cloudy_paramfile}", f"{output_directory}/")
 
     # If the ionisation_parameter_model is the reference model (i.e. not fixed)
     # save the value of the ionising photon luminosity at the reference grid
@@ -383,7 +389,7 @@ if __name__ == "__main__":
         )
 
         # Convert incided SED to cloudy format and save
-        shape_commands = cloudy23.ShapeCommands.table_sed(
+        shape_commands = cloudy.ShapeCommands.table_sed(
             "input",
             lam,
             lnu,
@@ -443,6 +449,8 @@ if __name__ == "__main__":
                     parameters,
                     delta_log10_specific_ionising_luminosity,
                     output_directory,
+                    cloudy,
+                    shape_commands=shape_commands,
                 )
 
         # Else, if there is only one photoionisation model there is no need to
@@ -457,6 +465,8 @@ if __name__ == "__main__":
                 parameters,
                 delta_log10_specific_ionising_luminosity,
                 output_directory,
+                cloudy,
+                shape_commands=shape_commands,
             )
 
     # If a specific machine is specified run the function in
