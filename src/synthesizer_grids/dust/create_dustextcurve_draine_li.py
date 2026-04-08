@@ -563,8 +563,8 @@ if __name__ == "__main__":
         math.log10(DTG_MIN), math.log10(DTG_MAX), N_DTG, endpoint=True
     )
 
-    N_DTG += 1  # add one more point for DTG=0 (no dust)
-    dtg_grid = np.insert(dtg_grid, 0, 0.0)  # insert DTG=0 at the beginning
+    N_DTG += 1  # add one more point for DTG~0 (no dust)
+    dtg_grid = np.insert(dtg_grid, 0, 1e-99)  # insert DTG~0 at the beginning
 
     # Material densities (g cm^-3)
     RHO_SIL = 3.5
