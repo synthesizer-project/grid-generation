@@ -81,11 +81,11 @@ def read_gz_lines(gzbytes: bytes, savename: str) -> List[str]:
 
 def parse_draine_file_lines(
     filename: str,
-) -> Tuple[NDArray, NDArray, NDArray, NDArray, NDArray]:
+) -> Tuple[NDArray, NDArray, NDArray, NDArray, NDArray, NDArray]:
     """
     Parse Draine optical property file (e.g., Sil_81.txt) and extract
     radius grid (micron), wavelength grid (micron), and Qext, Qabs,
-    Qsca arrays.
+    Qsca, gcos arrays.
 
     Args:
         filename (string)
@@ -101,6 +101,8 @@ def parse_draine_file_lines(
             absorption efficiency array, shape (len(wav_grid), len(a_grid))
         Qsca (NDArray)
             scattering efficiency array, shape (len(wav_grid), len(a_grid))
+        gcos (NDArray)
+            asymmetry parameter (g) array, shape (len(wav_grid), len(a_grid))
     """
 
     NRAD = None
@@ -155,18 +157,26 @@ def parse_draine_file_lines(
     Qabs: NDArray = np.zeros((NRAD, NWAV))
     Qsca: NDArray = np.zeros((NRAD, NWAV))
     Qext: NDArray = np.zeros((NRAD, NWAV))
-    # gcos: NDArray = np.zeros((NRAD, NWAV))
+    gcos: NDArray = np.zeros((NRAD, NWAV))
+
+    # Pre-read and clean the file to fix missing spaces before minus signs
+    # e.g., converts '6.53E-23-1.00E-02' into '6.53E-23 -1.00E-02'
+    with open(filename, "r") as f:
+        cleaned_lines = [
+            line.replace("-", " -").replace("E -", "E-").replace("e -", "e-")
+            for line in f
+        ]
 
     for ii in range(NRAD):
         if "PAH" in filename:
             add = 1
-            usecols = (0, 1, 2, 3)
+            usecols = (0, 1, 2, 3, 4)
         else:
             add = 0
-            usecols = (0, 1, 2)
+            usecols = (0, 1, 2, 3)
 
         tmp = np.genfromtxt(
-            filename,
+            cleaned_lines,
             skip_header=first_skip_hdr + ii * NWAV + ii * skip_ftr,
             max_rows=NWAV,
             dtype=float,
@@ -181,9 +191,9 @@ def parse_draine_file_lines(
             Qext[ii] = tmp[:, 1]
         else:
             Qext[ii] = tmp[:, 1 + add] + tmp[:, 2 + add]
-        # gcos[ii] = tmp[:,3+add]
+        gcos[ii] = tmp[:, 3 + add]
 
-    return a_grid, wav_grid, Qext.T, Qabs.T, Qsca.T
+    return a_grid, wav_grid, Qext.T, Qabs.T, Qsca.T, gcos.T
 
 
 def build_mrn_component(
@@ -586,24 +596,24 @@ if __name__ == "__main__":
 
     # Download and process files
     if Path(saveSIL).exists():
-        radii_sil, wav_sil, Qext_sil, Qabs_sil, Qsca_sil = (
+        radii_sil, wav_sil, Qext_sil, Qabs_sil, Qsca_sil, gcos_sil = (
             parse_draine_file_lines(saveSIL)
         )
     else:
         sil_bytes = download_bytes(SIL_URL)
         read_gz_lines(sil_bytes, savename=saveSIL)
-        radii_sil, wav_sil, Qext_sil, Qabs_sil, Qsca_sil = (
+        radii_sil, wav_sil, Qext_sil, Qabs_sil, Qsca_sil, gcos_sil = (
             parse_draine_file_lines(saveSIL)
         )
 
     if Path(saveGRA).exists():
-        radii_gra, wav_gra, Qext_gra, Qabs_gra, Qsca_gra = (
+        radii_gra, wav_gra, Qext_gra, Qabs_gra, Qsca_gra, gcos_gra = (
             parse_draine_file_lines(saveGRA)
         )
     else:
         gra_bytes = download_bytes(GRA_URL)
         read_gz_lines(gra_bytes, savename=saveGRA)
-        radii_gra, wav_gra, Qext_gra, Qabs_gra, Qsca_gra = (
+        radii_gra, wav_gra, Qext_gra, Qabs_gra, Qsca_gra, gcos_gra = (
             parse_draine_file_lines(saveGRA)
         )
 
@@ -614,6 +624,7 @@ if __name__ == "__main__":
             Qext_pah_ion,
             Qabs_pah_ion,
             Qsca_pah_ion,
+            gcos_pah_ion,
         ) = parse_draine_file_lines(savePAHion)
     else:
         pah_ion_bytes = download_bytes(PAH_ion)
@@ -624,6 +635,7 @@ if __name__ == "__main__":
             Qext_pah_ion,
             Qabs_pah_ion,
             Qsca_pah_ion,
+            gcos_pah_ion,
         ) = parse_draine_file_lines(savePAHion)
 
     if Path(savePAHneu).exists():
@@ -633,6 +645,7 @@ if __name__ == "__main__":
             Qext_pah_neu,
             Qabs_pah_neu,
             Qsca_pah_neu,
+            gcos_pah_neu,
         ) = parse_draine_file_lines(savePAHneu)
     else:
         pah_neu_bytes = download_bytes(PAH_neu)
@@ -643,6 +656,7 @@ if __name__ == "__main__":
             Qext_pah_neu,
             Qabs_pah_neu,
             Qsca_pah_neu,
+            gcos_pah_neu,
         ) = parse_draine_file_lines(savePAHneu)
 
     # unify wavelength grid
@@ -659,6 +673,40 @@ if __name__ == "__main__":
     Qs_pahneu = interp_Q_to_grid(
         wav_pah_neu, radii_pah_neu, Qext_pah_neu, all_wav
     )
+
+    # Interpolate components to calculate the effective attenuation efficiency
+    # Qeff = Qabs + (1 - g) * Qsca
+    Qabs_sil_interp = interp_Q_to_grid(wav_sil, radii_sil, Qabs_sil, all_wav)
+    Qsca_sil_interp = interp_Q_to_grid(wav_sil, radii_sil, Qsca_sil, all_wav)
+    g_sil = interp_Q_to_grid(wav_sil, radii_sil, gcos_sil, all_wav)
+    Qeff_sil = Qabs_sil_interp + (1.0 - g_sil) * Qsca_sil_interp
+
+    Qabs_gra_interp = interp_Q_to_grid(wav_gra, radii_gra, Qabs_gra, all_wav)
+    Qsca_gra_interp = interp_Q_to_grid(wav_gra, radii_gra, Qsca_gra, all_wav)
+    g_gra = interp_Q_to_grid(wav_gra, radii_gra, gcos_gra, all_wav)
+    Qeff_gra = Qabs_gra_interp + (1.0 - g_gra) * Qsca_gra_interp
+
+    Qabs_pahion_interp = interp_Q_to_grid(
+        wav_pah_ion, radii_pah_ion, Qabs_pah_ion, all_wav
+    )
+    Qsca_pahion_interp = interp_Q_to_grid(
+        wav_pah_ion, radii_pah_ion, Qsca_pah_ion, all_wav
+    )
+    g_pahion = interp_Q_to_grid(
+        wav_pah_ion, radii_pah_ion, gcos_pah_ion, all_wav
+    )
+    Qeff_pahion = Qabs_pahion_interp + (1.0 - g_pahion) * Qsca_pahion_interp
+
+    Qabs_pahneu_interp = interp_Q_to_grid(
+        wav_pah_neu, radii_pah_neu, Qabs_pah_neu, all_wav
+    )
+    Qsca_pahneu_interp = interp_Q_to_grid(
+        wav_pah_neu, radii_pah_neu, Qsca_pah_neu, all_wav
+    )
+    g_pahneu = interp_Q_to_grid(
+        wav_pah_neu, radii_pah_neu, gcos_pah_neu, all_wav
+    )
+    Qeff_pahneu = Qabs_pahneu_interp + (1.0 - g_pahneu) * Qsca_pahneu_interp
 
     # compute mass per H for each material
     mass_per_H_grain_grid = dtg_grid * GAS_MASS_PER_H
@@ -802,22 +850,22 @@ if __name__ == "__main__":
     # compute sigma for each component and total
     for ii in range(N_DTG):
         Alam_s_small[ii] = calculate_Alam_over_NH(
-            all_wav, radii_sil, Qs_sil, a_grid_int, n_s_small[ii]
+            all_wav, radii_sil, Qeff_sil, a_grid_int, n_s_small[ii]
         )
         Alam_s_large[ii] = calculate_Alam_over_NH(
-            all_wav, radii_sil, Qs_sil, a_grid_int, n_s_large[ii]
+            all_wav, radii_sil, Qeff_sil, a_grid_int, n_s_large[ii]
         )
         Alam_g_small[ii] = calculate_Alam_over_NH(
-            all_wav, radii_gra, Qs_gra, a_grid_int, n_g_small[ii]
+            all_wav, radii_gra, Qeff_gra, a_grid_int, n_g_small[ii]
         )
         Alam_g_large[ii] = calculate_Alam_over_NH(
-            all_wav, radii_gra, Qs_gra, a_grid_int, n_g_large[ii]
+            all_wav, radii_gra, Qeff_gra, a_grid_int, n_g_large[ii]
         )
         Alam_pahion[ii] = calculate_Alam_over_NH(
-            all_wav, radii_pah_ion, Qs_pahion, a_grid_int, n_pahion[ii]
+            all_wav, radii_pah_ion, Qeff_pahion, a_grid_int, n_pahion[ii]
         )
         Alam_pahneu[ii] = calculate_Alam_over_NH(
-            all_wav, radii_pah_neu, Qs_pahneu, a_grid_int, n_pahneu[ii]
+            all_wav, radii_pah_neu, Qeff_pahneu, a_grid_int, n_pahneu[ii]
         )
 
     # Filter and write
