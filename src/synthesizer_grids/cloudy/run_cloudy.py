@@ -154,8 +154,8 @@ if __name__ == "__main__":
         incident_indices = incident_indices.flatten()
         photoionisation_indices = photoionisation_indices.flatten()
 
-    print(incident_indices)
-    print(photoionisation_indices)
+    print(f"incident model indices: {incident_indices}")
+    print(f"photoionisation model indices: {photoionisation_indices}")
 
     # Loop over the list of indices and run each one
     for incident_index, photoionisation_index in zip(

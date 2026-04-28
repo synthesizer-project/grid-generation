@@ -66,11 +66,17 @@ def create_cloudy_input(
                 kk = k.split(".")[1]
 
                 if v is not None:
-                    # The value (v) here could be a bona fide string or number,
-                    # try to convert to a
-                    try:
+                    if isinstance(v, (int, float, np.integer, np.floating)):
                         value = float(v)
-                    except ValueError:
+                    elif (
+                        isinstance(v, str)
+                        and v.strip()
+                        .lstrip("+-")
+                        .replace(".", "", 1)
+                        .isdigit()
+                    ):
+                        value = float(v)
+                    else:
                         value = v
 
                     # convert to synthesizer standard
@@ -93,10 +99,10 @@ def create_cloudy_input(
     else:
         depletion_model = None
 
-    print(parameters["metallicities"])
-    print(parameters["reference_abundance"])
-    print(parameters["alpha_enhancement"])
-    print(parameters["abundance_scalings"])
+    print(f"metallicity: {parameters['metallicities']}")
+    print(f"reference abundance: {parameters['reference_abundance']}")
+    print(f"alpha enhancement: {parameters['alpha_enhancement']}")
+    print(f"abundance scalings: {parameters['abundance_scalings']}")
 
     # Create synthesizer.Abundance object
     abundances = Abundances(

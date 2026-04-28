@@ -701,13 +701,6 @@ def add_lines(
         for continuum_quantity in continuum_quantities:
             lines[continuum_quantity] = np.empty((*new_shape, nlines))
 
-    # If we're not using spectra, we still need to create output arrays for
-    # the continuum quantities, but this time they are zeros.
-    else:
-        # Define output arrays
-        for continuum_quantity in continuum_quantities:
-            lines[continuum_quantity] = np.zeros((*new_shape, nlines))
-
     # Array for recording cloudy failures
     failures = np.zeros(new_shape)
 
@@ -795,7 +788,8 @@ def add_lines(
 
     # If continuum values are calculated add units
     for continuum_quantity in continuum_quantities:
-        lines[continuum_quantity] *= erg / s / Hz
+        if continuum_quantity in lines:
+            lines[continuum_quantity] *= erg / s / Hz
 
     # Write the lines out
     new_grid.write_lines(
