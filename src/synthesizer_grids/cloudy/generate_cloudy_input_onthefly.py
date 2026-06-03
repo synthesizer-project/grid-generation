@@ -153,6 +153,7 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
             parameters=parameters,
             delta_log10_specific_ionising_luminosity=delta_log10_specific_ionising_luminosity,
             output_directory=str(temp_parent),
+            cloudy_version=cloudy,
         )
     finally:
         os.chdir(original_dir)

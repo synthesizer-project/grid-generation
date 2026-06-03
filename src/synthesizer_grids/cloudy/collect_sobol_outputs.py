@@ -1,25 +1,16 @@
 """
 Collect Cloudy output continuum spectra from Sobol-sampled models and add
-to HDF5 grid.
+to the HDF5 grid created by create_cloudy_input_sobol.py.
 
-Reads spectra from spectra/*.txt files and adds to the HDF5 file created by
-create_cloudy_input_sobol.py. The HDF5 file already contains:
-- Sampled parameter values for each model (in parameters/ group)
-- Fixed parameters as attributes
-
-This script adds:
-- Continuum spectra as 2D dataset(s) - choose from total, nebular, transmitted
-- Wavelength grid
+Reads the raw cloudy ``.cont`` files from the ``cont/`` subdirectory (one per
+sample, named ``{index}.cont``) using synthesizer's ``read_continuum`` reader,
+which fixes the column mapping, wavelength ordering and units to match the
+stored incident spectra.
 
 Usage:
-    # Save total spectrum only (default)
-    python collect_sobol_outputs.py \
-        --output-dir /path/to/cloudy_output_dir
-
-    # Save multiple spectra
-    python collect_sobol_outputs.py \
-        --output-dir /path/to/cloudy_output_dir \
-        --spec-names total nebular transmitted
+    python collect_sobol_outputs.py --output-dir /path/to/cloudy_output_dir
+    python collect_sobol_outputs.py --output-dir /path/to/dir \
+        --spec-names nebular linecont
 """
 
 import argparse
@@ -28,19 +19,60 @@ from pathlib import Path
 import h5py
 import numpy as np
 import yaml
+from synthesizer.photoionisation import cloudy17, cloudy23
+
+# Cloudy 25 uses the same interface as 23; alias for semantic clarity
+cloudy25 = cloudy23
+
+# All spectra exposed by synthesizer.read_continuum(return_dict=True).
+AVAILABLE_SPECTRA = (
+    "incident",
+    "transmitted",
+    "nebular",
+    "nebular_continuum",
+    "total",
+    "linecont",
+)
+
+# Base spectra to store; total and nebular_continuum are derived from these
+# within synthesizer and so are not saved by default.
+DEFAULT_SPECTRA = (
+    "incident",
+    "transmitted",
+    "nebular",
+    "linecont",
+)
 
 
-def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
+def _select_cloudy_module(cloudy_version):
+    """Return the synthesizer cloudy module for a given version string."""
+    major = cloudy_version.split(".")[0]
+    if major in ("c23", "c25"):
+        return cloudy23
+    elif major == "c17":
+        return cloudy17
+    raise ValueError(f"Unknown Cloudy version: {cloudy_version}")
+
+
+def collect_sobol_outputs(
+    output_dir, output_file=None, spec_names=DEFAULT_SPECTRA
+):
     """
-    Collect all Sobol output spectra and parameters into HDF5.
+    Collect all Sobol output spectra into the parameter HDF5.
 
     Args:
         output_dir (str): Path to Cloudy output directory
         output_file (str): Output HDF5 filename (optional)
-        spec_names (tuple): Spectra to save - choose from "total",
-                           "nebular", "transmitted" (default: ("total",))
+        spec_names (tuple): Spectra to save (any of AVAILABLE_SPECTRA).
     """
     output_dir = Path(output_dir)
+
+    for spec_name in spec_names:
+        if spec_name not in AVAILABLE_SPECTRA:
+            raise ValueError(
+                f"Unknown spectrum type: {spec_name}. "
+                f"Choose from {AVAILABLE_SPECTRA}."
+            )
 
     # Determine HDF5 grid file path
     # If output_file not specified, use the grid name from the directory
@@ -63,86 +95,82 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
     with open(param_file, "r") as f:
         grid_params = yaml.safe_load(f)
 
-    cloudy_version = grid_params["cloudy_version"]
+    cloudy = _select_cloudy_module(grid_params["cloudy_version"])
 
-    # Read n_samples and parameters from existing HDF5 file
+    # Read n_samples from existing HDF5 file
     with h5py.File(output_file, "r") as hf:
-        n_samples = hf.attrs["n_samples"]
+        n_samples = int(hf.attrs["n_samples"])
 
     print(f"Collecting {n_samples} Sobol samples from {output_dir}")
-    print(f"Cloudy version: {cloudy_version}")
-
-    # Read wavelength grid from first available spectra file
-    available = sorted((output_dir / "spectra").glob("spectra_*.txt"))
-    if not available:
-        raise FileNotFoundError(
-            f"No spectra files found in {output_dir / 'spectra'}"
-        )
-    first_spec_file = available[0]
-
-    first_data = np.loadtxt(first_spec_file)
-    n_lambda = first_data.shape[0]
-
-    # The Cloudy .cont file is saved with 'units Angstroms' so column 0 is
-    # already wavelength in Angstroms — use it directly.
-    lam = first_data[:, 0]
-
-    print(f"Wavelength grid size: {n_lambda}")
+    print(f"Cloudy version: {grid_params['cloudy_version']}")
     print(f"Spectra to save: {spec_names}")
 
-    # Initialize arrays for requested spectra
-    spectra = {}
-    for spec_name in spec_names:
-        spectra[spec_name] = np.zeros((n_samples, n_lambda))
+    # The submission script saves the raw cloudy continuum for each sample as
+    # cont/{index}.cont (synthesizer's read_continuum appends the .cont).
+    cont_dir = output_dir / "cont"
+    available = sorted(cont_dir.glob("*.cont"))
+    if not available:
+        raise FileNotFoundError(f"No .cont files found in {cont_dir}")
 
-    # Collect spectra from indexed text files in spectra/ subdirectory
-    missing_files = []
+    # Read the (ascending, Angstrom) wavelength grid from the first file
+    first_index = available[0].stem  # "{index}.cont" -> "{index}"
+    lam = cloudy.read_wavelength(str(cont_dir / first_index))
+    n_lambda = len(lam)
+    print(f"Wavelength grid size: {n_lambda}")
+
+    # Initialise arrays for requested spectra
+    spectra = {
+        spec_name: np.zeros((n_samples, n_lambda)) for spec_name in spec_names
+    }
+
+    # Collect spectra, recording any samples we cannot use
+    missing = []  # no .cont file (failed/never-run cloudy model)
+    bad = []  # .cont present but unreadable / wrong wavelength length
     for i in range(n_samples):
-        spec_file = output_dir / "spectra" / f"spectra_{i}.txt"
-
-        if not spec_file.exists():
-            missing_files.append(i)
+        cont_prefix = cont_dir / str(i)
+        if not cont_prefix.with_suffix(".cont").exists():
+            missing.append(i)
             continue
 
-        # Columns: wavelength, incident, transmitted, nebular, total, linecont
-        data = np.loadtxt(spec_file)
+        try:
+            spec_dict = cloudy.read_continuum(
+                str(cont_prefix), return_dict=True
+            )
+        except Exception as exc:  # noqa: BLE001 - want to skip any bad file
+            print(f"Warning: could not read sample {i}: {exc}")
+            bad.append(i)
+            continue
 
-        # Verify wavelength grid consistency
-        if data.shape[0] != n_lambda:
+        if len(spec_dict["lam"]) != n_lambda:
             print(
-                f"Warning: Sample {i} has {data.shape[0]} wavelength "
+                f"Warning: sample {i} has {len(spec_dict['lam'])} wavelength "
                 f"points, expected {n_lambda}"
             )
+            bad.append(i)
             continue
 
-        # Columns: 0=wavelength(Å), 1=incident, 2=transmitted, 3=nebular,
-        # 4=total, 5=linecont
-        col_map = {
-            "incident": 1,
-            "transmitted": 2,
-            "nebular": 3,
-            "total": 4,
-            "linecont": 5,
-        }
         for spec_name in spec_names:
-            if spec_name not in col_map:
-                raise ValueError(f"Unknown spectrum type: {spec_name}")
-            spectra[spec_name][i, :] = data[:, col_map[spec_name]]
+            spectra[spec_name][i, :] = spec_dict[spec_name]
 
-    if missing_files:
-        print(
-            f"\nWarning: {len(missing_files)} missing spectra files: "
-            f"{missing_files[:10]}..."
-        )
-
-    # Build boolean mask: True for samples with successfully collected spectra
+    # Build boolean mask: True only for samples with usable spectra. Both
+    # missing files and unreadable/mismatched files are excluded so all-zero
+    # rows never leak into downstream training as "valid".
+    invalid = sorted(set(missing) | set(bad))
     valid_samples = np.ones(n_samples, dtype=bool)
-    valid_samples[missing_files] = False
+    valid_samples[invalid] = False
     n_valid = int(valid_samples.sum())
-    print(
-        f"\nValid samples: {n_valid}/{n_samples} "
-        f"({len(missing_files)} failed runs excluded)"
-    )
+
+    if missing:
+        print(
+            f"\n{len(missing)} missing .cont files (failed/absent runs): "
+            f"{missing[:10]}{'...' if len(missing) > 10 else ''}"
+        )
+    if bad:
+        print(
+            f"{len(bad)} unreadable/inconsistent .cont files: "
+            f"{bad[:10]}{'...' if len(bad) > 10 else ''}"
+        )
+    print(f"\nValid samples: {n_valid}/{n_samples} ({len(invalid)} excluded)")
 
     print(f"\nAdding spectra to {output_file}")
 
@@ -155,23 +183,15 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
         else:
             spectra_group = hf["spectra"]
 
-        # Save requested spectra
+        # Save requested spectra (allow re-running by overwriting)
         for spec_name in spec_names:
-            # If single spectrum, save directly under spectra group
-            if len(spec_names) == 1:
-                dataset_name = spec_name
-            else:
-                dataset_name = spec_name
-
-            # Delete if already exists (allow re-running)
-            if dataset_name in spectra_group:
-                del spectra_group[dataset_name]
-
+            if spec_name in spectra_group:
+                del spectra_group[spec_name]
             spectra_group.create_dataset(
-                dataset_name, data=spectra[spec_name], compression="gzip"
+                spec_name, data=spectra[spec_name], compression="gzip"
             )
 
-        # Save wavelength grid (already in Angstroms from cloudy module)
+        # Save wavelength grid (Angstroms, ascending)
         if "wavelength" in hf:
             del hf["wavelength"]
         hf.create_dataset("wavelength", data=lam, compression="gzip")
@@ -187,7 +207,7 @@ def collect_sobol_outputs(output_dir, output_file=None, spec_names=("total",)):
         hf.attrs["spec_names"] = list(spec_names)
 
     print(
-        f"Successfully added {n_samples} spectra ({', '.join(spec_names)}) "
+        f"Successfully added spectra ({', '.join(spec_names)}) "
         f"to {output_file}"
     )
 
@@ -218,11 +238,10 @@ if __name__ == "__main__":
         type=str,
         nargs="+",
         required=False,
-        default=["incident", "transmitted", "nebular", "total", "linecont"],
-        choices=["incident", "transmitted", "nebular", "total", "linecont"],
-        help="Spectra to save (default: all five). "
-        "Can specify multiple: --spec-names incident transmitted nebular "
-        "total linecont",
+        default=list(DEFAULT_SPECTRA),
+        choices=list(AVAILABLE_SPECTRA),
+        help="Spectra to save (default: incident transmitted nebular "
+        "linecont).",
     )
 
     args = parser.parse_args()

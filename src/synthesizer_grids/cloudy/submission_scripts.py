@@ -206,7 +206,7 @@ def cosma7_sobol(
     cloudy_executable_path,
     account="dp276",
     partition="cosma7",
-    time_per_model=10,
+    time_per_model=15,
     use_striding=True,
     stride_step=1000,
     mail_user=None,
@@ -439,8 +439,8 @@ def cosma7_sobol_onthefly(
             f'CLOUDY_EXE="{cloudy_executable_path}/cloudy.exe"',
             f'SCRIPT_DIR="{script_dir}"',
             "",
-            "# Create spectra output directory",
-            'mkdir -p "$GRID_DIR/spectra"',
+            "# Create continuum output directory",
+            'mkdir -p "$GRID_DIR/cont"',
             "",
         ]
     )
@@ -467,9 +467,9 @@ def cosma7_sobol_onthefly(
                 '    cd "$work_dir"',
                 "    $CLOUDY_EXE -r 0",
                 '    if [ $? -eq 0 ] && [ -f "0.cont" ]; then',
-                "        tail -n +2 0.cont | "
-                "awk '{print $1, $2, $3, $4, $5, $9}' > "
-                '"$GRID_DIR/spectra/spectra_${incident_idx}.txt"',
+                "        # Keep the raw cloudy .cont; collect_sobol_outputs"
+                " parses it with synthesizer.read_continuum",
+                '        mv "0.cont" "$GRID_DIR/cont/${incident_idx}.cont"',
                 '        cd "$GRID_DIR" && rm -rf "$work_dir"',
                 "    fi",
                 "done",
@@ -487,9 +487,9 @@ def cosma7_sobol_onthefly(
                 'cd "$work_dir"',
                 "$CLOUDY_EXE -r 0",
                 'if [ $? -eq 0 ] && [ -f "0.cont" ]; then',
-                "    tail -n +2 0.cont | "
-                "awk '{print $1, $2, $3, $4, $5, $9}' > "
-                '"$GRID_DIR/spectra/spectra_${incident_idx}.txt"',
+                "    # Keep the raw cloudy .cont; collect_sobol_outputs"
+                " parses it with synthesizer.read_continuum",
+                '    mv "0.cont" "$GRID_DIR/cont/${incident_idx}.cont"',
                 '    cd "$GRID_DIR" && rm -rf "$work_dir"',
                 "fi",
             ]

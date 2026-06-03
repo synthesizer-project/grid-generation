@@ -408,22 +408,14 @@ if __name__ == "__main__":
                 ref_dict[axis] = ref_met
 
         ref_grid_point = incident_grid.get_grid_point(**ref_dict)
-        reference_log10_specific_ionising_lum = (
+        reference_log10_specific_ionising_lum = float(
             incident_grid.log10_specific_ionising_lum["HI"][ref_grid_point]
         )
 
-        # Calculate specific ionising luminosity for each sample
-        # Need to interpolate log10_specific_ionising_lum
-        ref_stars = Stars(
-            initial_masses=initial_masses,
-            ages=ages_array * yr,
-            metallicities=metallicities_array,
-        )
-        # Get ionising photon luminosity at sampled points
+        # Per-sample specific ionising luminosity from the interpolated
+        # incident spectra (initial_masses are 1 Msun). Q is in s^-1.
         log10Q_samples = np.log10(
-            ref_stars.get_attr_per_particle(
-                incident_grid, "log10_specific_ionising_lum", "HI"
-            )
+            spec.calculate_ionising_photon_production_rate(nthreads=-1).value
         )
     else:
         reference_log10_specific_ionising_lum = None
