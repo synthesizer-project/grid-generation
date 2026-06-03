@@ -17,7 +17,7 @@ depletion_scale: 0.5 # [0.0, 1.0, 'linear'] # the depletion scale factor. For li
 grains: Orion # include ISM grains
 
 # GEOMETRY
-geometry: planeparallel
+geometry: spherical
 
 # IONISATION PARAMETER 
 ionisation_parameter_model: fixed  # which ionisation parameter model to use. `ref` assumes a varying ionisation parameter at a fixed reference age and metallicity
@@ -36,7 +36,7 @@ T_floor: 100  # lower gas temperature floor
 cosmic_rays: true  # flag for inclusion of cosmic ray heating
 # covering_factor: 1.0  #
 radius: 0.01  # log of the radius of the cloud, in parsecs
-turbulence: [10, 200, 'linear']  # turbulence
+turbulence: 100  # [10, 200, 'linear']  # turbulence
 z: 0.0  # redshift
 
 # OUTPUT COMMANDS
