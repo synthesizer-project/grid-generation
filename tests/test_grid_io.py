@@ -140,3 +140,45 @@ def test_add_specific_ionising_luminosity(simple_grid):
     )
     assert data.shape == expected_shape
     assert np.isfinite(data).all()
+
+
+def test_grid_readable_by_synthesizer(simple_grid):
+    """A grid written here can be loaded back into a Synthesizer Grid.
+
+    This exercises the grid-generation <-> Synthesizer link end to end,
+    confirming the on-disk layout matches what Synthesizer expects.
+    """
+    # Skip gracefully if Synthesizer is not installed in the environment.
+    grid_module = pytest.importorskip("synthesizer.grid")
+    Grid = grid_module.Grid
+
+    path = simple_grid["path"]
+    axes = simple_grid["axes"]
+    wavelength = simple_grid["wavelength"]
+
+    # Grid takes the file name (without extension) and its directory.
+    read_grid = Grid(
+        path.stem,
+        grid_dir=str(path.parent),
+        ignore_lines=True,
+    )
+
+    # Axes round-trip with the names and values we wrote.
+    assert read_grid.axes == ["ages", "metallicities"]
+    np.testing.assert_allclose(
+        np.asarray(read_grid.ages.to("yr")),
+        np.asarray(axes["ages"].to("yr")),
+    )
+    np.testing.assert_allclose(
+        np.asarray(read_grid.metallicities),
+        np.asarray(axes["metallicities"]),
+    )
+
+    # Wavelength and spectra round-trip with the expected shape and values.
+    np.testing.assert_allclose(
+        np.asarray(read_grid.lam.to("Angstrom")),
+        np.asarray(wavelength.to("Angstrom")),
+    )
+    assert read_grid.available_spectra == ["incident"]
+    assert read_grid.spectra["incident"].shape == simple_grid["spectra_shape"]
+    np.testing.assert_allclose(read_grid.spectra["incident"], 1.0)

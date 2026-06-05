@@ -20,7 +20,7 @@ def test_parser_exposes_alpha_flags(tmp_path):
     assert args.grid_dir == str(tmp_path)
     assert args.input_dir == str(tmp_path)
     assert args.full
-    assert not args.inidividual
+    assert not args.individual
 
 
 def test_parser_cloudy_arguments(tmp_path):
