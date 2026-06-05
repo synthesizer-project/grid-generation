@@ -74,21 +74,20 @@ def collect_sobol_outputs(
                 f"Choose from {AVAILABLE_SPECTRA}."
             )
 
-    # Determine HDF5 grid file path
-    # If output_file not specified, use the grid name from the directory
+    # Determine HDF5 grid file path. If not specified, find the single .hdf5
+    # in the output dir (created by create_cloudy_input_sobol.py).
     if output_file is None:
-        grid_name = output_dir.name
-        output_file = output_dir / f"{grid_name}.hdf5"
+        hdf5_files = sorted(output_dir.glob("*.hdf5"))
+        if len(hdf5_files) != 1:
+            raise FileNotFoundError(
+                f"Expected exactly one .hdf5 in {output_dir}, found "
+                f"{len(hdf5_files)}. Run create_cloudy_input_sobol.py first."
+            )
+        output_file = hdf5_files[0]
     else:
         output_file = Path(output_file)
-
-    # Check if HDF5 file exists (created by create_cloudy_input_sobol.py)
-    if not output_file.exists():
-        raise FileNotFoundError(
-            f"Grid HDF5 file not found: {output_file}. "
-            f"Run create_cloudy_input_sobol.py first to create the "
-            f"parameter grid."
-        )
+        if not output_file.exists():
+            raise FileNotFoundError(f"Grid HDF5 file not found: {output_file}")
 
     # Load grid parameters from YAML for cloudy version
     param_file = output_dir / "grid_parameters.yaml"

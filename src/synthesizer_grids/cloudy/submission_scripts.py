@@ -377,13 +377,19 @@ def cosma7_sobol_onthefly(
     time_per_model=10,
     use_striding=True,
     stride_step=1000,
+    cores_per_node=28,
     mail_user=None,
 ):
     """
     Create COSMA7 SLURM script for Sobol grids with on-the-fly input
     generation. Generates inputs, runs Cloudy, extracts spectra, and
     cleans up.
+
+    The cosma7 partition is OverSubscribe=EXCLUSIVE, so each array task gets
+    a whole node. The strided models are run in parallel across the node's
+    cores (cores_per_node) via xargs -P.
     """
+    import math
     from pathlib import Path
 
     grid_dir = f"{cloudy_output_dir}/{new_grid_name}"
@@ -397,12 +403,17 @@ def cosma7_sobol_onthefly(
         array_range = f"0-{n_samples - 1}"
         models_per_job = 1
 
-    total_minutes = int(models_per_job * time_per_model * 1.2)
+    # Models per task run cores_per_node at a time; walltime scales with the
+    # number of sequential batches, not the raw model count.
+    batches = math.ceil(models_per_job / cores_per_node)
+    total_minutes = int(batches * time_per_model * 1.2)
     hours = total_minutes // 60
     minutes = total_minutes % 60
     walltime = f"{hours:02d}:{minutes:02d}:00"
 
     print(f"Models per array job: {models_per_job}")
+    print(f"Cores per node (parallelism): {cores_per_node}")
+    print(f"Sequential batches per job: {batches}")
     print(f"Calculated walltime: {walltime}")
 
     mail_directives = ""
@@ -455,24 +466,34 @@ def cosma7_sobol_onthefly(
         script_lines.extend(
             [
                 f"STEP={stride_step}",
+                # Whole node is allocated (EXCLUSIVE); fill all its cores.
+                "NCORES=${SLURM_CPUS_ON_NODE:-1}",
                 "",
-                "for incident_idx in $(seq $task_id $STEP "
-                "$((TOTAL_SAMPLES - 1))); do",
+                "run_one() {",
+                "    incident_idx=$1",
+                "    # Resume: skip models already collected",
+                '    [ -f "$GRID_DIR/cont/${incident_idx}.cont" ] && return',
                 '    work_dir="$GRID_DIR/tmp_${incident_idx}_$$"',
                 '    mkdir -p "$work_dir"',
-                '    echo "Sample $incident_idx"',
                 '    python "$SCRIPT_DIR/generate_cloudy_input_onthefly.py" '
-                '--grid-dir "$GRID_DIR" --sample-index $incident_idx '
-                '--work-dir "$work_dir" || continue',
-                '    cd "$work_dir"',
-                "    $CLOUDY_EXE -r 0",
+                '--grid-dir "$GRID_DIR" --sample-index "$incident_idx" '
+                '--work-dir "$work_dir" || { rm -rf "$work_dir"; return; }',
+                '    cd "$work_dir" || return',
+                '    "$CLOUDY_EXE" -r 0',
                 '    if [ $? -eq 0 ] && [ -f "0.cont" ]; then',
-                "        # Keep the raw cloudy .cont; collect_sobol_outputs"
-                " parses it with synthesizer.read_continuum",
+                "        # Raw cloudy .cont; parsed later by"
+                " synthesizer.read_continuum",
                 '        mv "0.cont" "$GRID_DIR/cont/${incident_idx}.cont"',
                 '        cd "$GRID_DIR" && rm -rf "$work_dir"',
                 "    fi",
-                "done",
+                "}",
+                "export -f run_one",
+                "export GRID_DIR SCRIPT_DIR CLOUDY_EXE",
+                "",
+                "# This task's strided models, ",
+                "# NCORES at a time across the node",
+                "seq $task_id $STEP $((TOTAL_SAMPLES - 1)) | \\",
+                '    xargs -P "$NCORES" -I{} bash -c \'run_one "$@"\' _ {}',
             ]
         )
     else:

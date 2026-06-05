@@ -197,6 +197,15 @@ if __name__ == "__main__":
         help="Random seed for Sobol sampling",
     )
 
+    parser.add_argument(
+        "--grid-name",
+        type=str,
+        required=False,
+        default=None,
+        help="Override the output folder name (default: "
+        "{incident_grid}_sobol-n{n_samples})",
+    )
+
     parser.add_argument("--machine", type=str, required=False, default=None)
 
     parser.add_argument(
@@ -246,12 +255,10 @@ if __name__ == "__main__":
     if not incident_grid_name.endswith(".hdf5"):
         incident_grid_name += ".hdf5"
 
-    # Generate grid name
+    # Generate grid name (provenance like paramfile/version/seed -> HDF5 attrs)
     paramfile_base = Path(cloudy_paramfile).stem
     grid_base = Path(incident_grid_name).stem
-    new_grid_name = f"{grid_base}_cloudy-sobol-{paramfile_base}-n{n_samples}"
-    if seed is not None:
-        new_grid_name += f"-seed{seed}"
+    new_grid_name = args.grid_name or f"{grid_base}_sobol-n{n_samples}"
 
     # Load parameter file
     with open(cloudy_paramfile, "r") as file:
@@ -312,7 +319,7 @@ if __name__ == "__main__":
         yaml.dump(parameters_to_save, file, default_flow_style=False)
 
     # Save the actual sampled parameter values to HDF5
-    grid_hdf5_file = f"{output_directory}/{new_grid_name}.hdf5"
+    grid_hdf5_file = f"{output_directory}/grid.hdf5"
     with h5py.File(grid_hdf5_file, "w") as hf:
         # Create parameters group
         param_group = hf.create_group("parameters")
@@ -344,9 +351,11 @@ if __name__ == "__main__":
             else:
                 hf.attrs[key] = value
 
-        # Save grid metadata
+        # Save grid metadata + provenance dropped from the folder name
         hf.attrs["n_samples"] = n_samples
         hf.attrs["sampling_method"] = "sobol"
+        hf.attrs["incident_grid"] = grid_base
+        hf.attrs["cloudy_paramfile"] = paramfile_base
         if seed is not None:
             hf.attrs["seed"] = seed
 

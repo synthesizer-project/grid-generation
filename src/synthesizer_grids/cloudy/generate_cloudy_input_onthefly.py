@@ -11,10 +11,12 @@ import os
 import shutil
 from pathlib import Path
 
+# from synthesizer.photoionisation
+import cloudy17
+import cloudy23
 import h5py
 import numpy as np
 import yaml
-from synthesizer.photoionisation import cloudy17, cloudy23
 
 from synthesizer_grids.cloudy.create_cloudy_input_grid import (
     create_cloudy_input,
