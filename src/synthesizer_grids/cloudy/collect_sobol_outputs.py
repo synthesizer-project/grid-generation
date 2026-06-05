@@ -19,10 +19,8 @@ from pathlib import Path
 import h5py
 import numpy as np
 import yaml
-from synthesizer.photoionisation import cloudy17, cloudy23
 
-# Cloudy 25 uses the same interface as 23; alias for semantic clarity
-cloudy25 = cloudy23
+from synthesizer_grids.cloudy import cloudy17, cloudy23, cloudy25
 
 # All spectra exposed by synthesizer.read_continuum(return_dict=True).
 AVAILABLE_SPECTRA = (
@@ -47,8 +45,10 @@ DEFAULT_SPECTRA = (
 def _select_cloudy_module(cloudy_version):
     """Return the synthesizer cloudy module for a given version string."""
     major = cloudy_version.split(".")[0]
-    if major in ("c23", "c25"):
+    if major == "c23":
         return cloudy23
+    elif major == "c25":
+        return cloudy25
     elif major == "c17":
         return cloudy17
     raise ValueError(f"Unknown Cloudy version: {cloudy_version}")

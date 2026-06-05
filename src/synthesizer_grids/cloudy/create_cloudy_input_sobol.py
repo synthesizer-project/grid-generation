@@ -16,13 +16,10 @@ from scipy.stats import qmc
 from synthesizer.emission_models import IncidentEmission
 from synthesizer.grid import Grid
 from synthesizer.particle import Stars
-from synthesizer.photoionisation import cloudy17, cloudy23
-
-# Cloudy 25 uses the same interface as 23; alias for semantic clarity
-cloudy25 = cloudy23
 from unyt import Msun, yr
 
 import synthesizer_grids.cloudy.submission_scripts as submission_scripts
+from synthesizer_grids.cloudy import cloudy17, cloudy23, cloudy25
 from synthesizer_grids.parser import Parser
 
 
@@ -294,7 +291,9 @@ if __name__ == "__main__":
     cloudy_version = fixed_params["cloudy_version"]
     if cloudy_version == "c17.03":
         cloudy = cloudy17
-    elif cloudy_version.startswith("c23") or cloudy_version.startswith("c25"):
+    elif cloudy_version.startswith("c23"):
+        cloudy = cloudy23
+    elif cloudy_version.startswith("c25"):
         cloudy = cloudy25
     else:
         raise ValueError(f"Unknown Cloudy version: {cloudy_version}")

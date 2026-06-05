@@ -14,12 +14,9 @@ import yaml
 from synthesizer.abundances import Abundances
 from synthesizer.exceptions import InconsistentParameter
 from synthesizer.grid import Grid
-from synthesizer.photoionisation import cloudy17, cloudy23
-
-# Cloudy 25 uses the same interface as 23; alias for semantic clarity
-cloudy25 = cloudy23
 
 import synthesizer_grids.cloudy.submission_scripts as submission_scripts
+from synthesizer_grids.cloudy import cloudy17, cloudy23, cloudy25
 from synthesizer_grids.cloudy.utils import (
     get_cloudy_params,
     get_grid_props_cloudy,
@@ -55,7 +52,7 @@ def create_cloudy_input(
         output_directory (str):
             The output directory.
         cloudy_version (module):
-            The synthesizer.photoionisation version (cloudy17 or cloudy23).
+            The Cloudy interface module (cloudy17, cloudy23 or cloudy25).
         shape_commands (list, optional):
             A list of strings containing cloudy shape commands.
     """
@@ -320,8 +317,10 @@ if __name__ == "__main__":
     cloudy_version = fixed_photoionisation_params["cloudy_version"]
     if cloudy_version == "c17.03":
         cloudy = cloudy17
-    elif cloudy_version.startswith("c23") or cloudy_version.startswith("c25"):
+    elif cloudy_version.startswith("c23"):
         cloudy = cloudy23
+    elif cloudy_version.startswith("c25"):
+        cloudy = cloudy25
     else:
         raise ValueError(f"Unknown Cloudy version: {cloudy_version}")
 

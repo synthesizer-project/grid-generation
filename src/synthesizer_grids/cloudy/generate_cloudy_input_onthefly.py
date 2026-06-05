@@ -11,20 +11,15 @@ import os
 import shutil
 from pathlib import Path
 
-# from synthesizer.photoionisation
-import cloudy17
-import cloudy23
 import h5py
 import numpy as np
 import yaml
+from unyt import Angstrom, Hz, erg, s
 
+from synthesizer_grids.cloudy import cloudy17, cloudy23, cloudy25
 from synthesizer_grids.cloudy.create_cloudy_input_grid import (
     create_cloudy_input,
 )
-
-# Cloudy 25 uses the same interface as 23; alias for semantic clarity
-cloudy25 = cloudy23
-from unyt import Angstrom, Hz, erg, s
 
 
 def generate_input_for_index(grid_dir, sample_index, work_dir=None):
@@ -57,7 +52,9 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
         grid_params = yaml.safe_load(f)
 
     cloudy_version = grid_params["cloudy_version"]
-    if cloudy_version.startswith("c23") or cloudy_version.startswith("c25"):
+    if cloudy_version.startswith("c23"):
+        cloudy = cloudy23
+    elif cloudy_version.startswith("c25"):
         cloudy = cloudy25
     elif cloudy_version.split(".")[0] == "c17":
         cloudy = cloudy17
