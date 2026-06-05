@@ -140,10 +140,15 @@ def collect_sobol_outputs(
             bad.append(i)
             continue
 
-        if len(spec_dict["lam"]) != n_lambda:
+        # Reject samples whose wavelength grid differs from the reference in
+        # either length or values; a same-length but shifted grid would
+        # otherwise be silently mis-aligned in the stacked arrays.
+        if len(spec_dict["lam"]) != n_lambda or not np.allclose(
+            spec_dict["lam"], lam
+        ):
             print(
-                f"Warning: sample {i} has {len(spec_dict['lam'])} wavelength "
-                f"points, expected {n_lambda}"
+                f"Warning: sample {i} wavelength grid does not match the "
+                "reference grid; skipping"
             )
             bad.append(i)
             continue

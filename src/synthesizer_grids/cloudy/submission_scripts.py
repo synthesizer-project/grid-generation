@@ -221,13 +221,17 @@ def cosma7_sobol(
         cloudy_executable_path (str): Path to cloudy executable directory
         account (str): SLURM account (default: dp276)
         partition (str): SLURM partition (default: cosma7)
-        time_per_model (int): Time per model in minutes (default: 10)
+        time_per_model (int): Time per model in minutes (default: 15)
         use_striding (bool): Use strided array jobs (default: True)
         stride_step (int): Stride step for array jobs (default: 1000)
         mail_user (str): Email for notifications (optional)
     """
 
-    grid_dir = f"{cloudy_output_dir}/{new_grid_name}"
+    from pathlib import Path
+
+    # Resolve to an absolute path so the generated script's repeated `cd`s and
+    # $GRID_DIR expansions are not sensitive to the job's working directory.
+    grid_dir = str(Path(cloudy_output_dir, new_grid_name).resolve())
 
     # Determine if striding is needed based on n_samples vs stride_step
     use_striding_actual = use_striding and n_samples > stride_step
@@ -384,7 +388,9 @@ def cosma7_sobol_onthefly(
     """
     Create COSMA7 SLURM script for Sobol grids with on-the-fly input
     generation. Generates inputs, runs Cloudy, extracts spectra, and
-    cleans up.
+    cleans up the work directories of successful runs. Failed runs (Cloudy
+    error or missing .cont) intentionally leave their work directories
+    behind to aid debugging.
 
     The cosma7 partition is OverSubscribe=EXCLUSIVE, so each array task gets
     a whole node. The strided models are run in parallel across the node's
@@ -394,7 +400,9 @@ def cosma7_sobol_onthefly(
     import math
     from pathlib import Path
 
-    grid_dir = f"{cloudy_output_dir}/{new_grid_name}"
+    # Resolve to an absolute path so $GRID_DIR is stable regardless of the
+    # job's working directory.
+    grid_dir = str(Path(cloudy_output_dir, new_grid_name).resolve())
     use_striding_actual = use_striding and n_samples > stride_step
 
     if use_striding_actual:

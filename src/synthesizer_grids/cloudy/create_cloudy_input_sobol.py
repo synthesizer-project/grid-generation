@@ -128,6 +128,9 @@ def generate_sobol_samples(
         tuple: (incident_samples, photoionisation_samples)
             Each is a list of dicts containing sampled parameter values
     """
+    if n_samples < 1:
+        raise ValueError("n_samples must be >= 1")
+
     # Combine all parameters
     all_params = {**incident_params, **photoionisation_params}
     n_dims = len(all_params)
@@ -241,6 +244,13 @@ if __name__ == "__main__":
     seed = args.seed
     machine = args.machine
     cloudy_executable_path = args.cloudy_executable_path
+
+    # Script generation needs a Cloudy executable; fail fast at the CLI rather
+    # than emitting launchers that point at "None/cloudy.exe".
+    if machine and not cloudy_executable_path:
+        parser.error(
+            "--cloudy-executable-path is required when --machine is set"
+        )
 
     print(f"Incident grid: {incident_grid_name}")
     print(f"Parameter file: {cloudy_paramfile}")

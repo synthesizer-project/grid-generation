@@ -90,8 +90,17 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
                 "spec_names",
             ]:
                 value = hf.attrs[key]
+                # Dict-valued attrs (e.g. abundance_scalings) are stored as
+                # JSON. h5py may return them as bytes or str, so decode bytes
+                # then attempt a JSON parse, falling back to the raw value for
+                # plain strings (e.g. cloudy_version).
                 if isinstance(value, bytes):
-                    fixed_params[key] = json.loads(value.decode())
+                    value = value.decode()
+                if isinstance(value, str):
+                    try:
+                        fixed_params[key] = json.loads(value)
+                    except json.JSONDecodeError:
+                        fixed_params[key] = value
                 else:
                     fixed_params[key] = value
 
