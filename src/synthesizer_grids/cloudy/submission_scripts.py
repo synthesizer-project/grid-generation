@@ -378,6 +378,7 @@ def cosma7_sobol_onthefly(
     use_striding=True,
     stride_step=1000,
     cores_per_node=28,
+    memory="0",
     mail_user=None,
 ):
     """
@@ -387,7 +388,8 @@ def cosma7_sobol_onthefly(
 
     The cosma7 partition is OverSubscribe=EXCLUSIVE, so each array task gets
     a whole node. The strided models are run in parallel across the node's
-    cores (cores_per_node) via xargs -P.
+    cores (cores_per_node) via xargs -P. memory="0" requests all node memory
+    (needed: the cores_per_node parallel Cloudy procs share one cgroup).
     """
     import math
     from pathlib import Path
@@ -432,7 +434,7 @@ def cosma7_sobol_onthefly(
         "#SBATCH --ntasks=1",
         "#SBATCH --cpus-per-task=1",
         f"#SBATCH -t {walltime}",
-        "#SBATCH --mem=4G",
+        f"#SBATCH --mem={memory}",
     ]
 
     if mail_directives:
