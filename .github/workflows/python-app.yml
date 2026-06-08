@@ -29,7 +29,7 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - uses: astral-sh/ruff-action@v1 # Lint with Ruff
         with:
-          version: 0.7.4
+          version: 0.15.15
           args: "format --check"
           changed-files: "true"
       - name: Test with pytest
