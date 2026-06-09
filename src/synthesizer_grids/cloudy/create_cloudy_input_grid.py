@@ -11,7 +11,6 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-
 from synthesizer.abundances import Abundances, depletion_models
 from synthesizer.exceptions import InconsistentParameter
 from synthesizer.grid import Grid

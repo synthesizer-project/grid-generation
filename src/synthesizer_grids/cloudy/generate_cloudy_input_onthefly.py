@@ -67,7 +67,8 @@ def generate_input_for_index(grid_dir, sample_index, work_dir=None):
 
         if sample_index >= n_samples or sample_index < 0:
             raise ValueError(
-                f"Sample index {sample_index} out of range [0, {n_samples-1}]"
+                f"Sample index {sample_index} out of range "
+                f"[0, {n_samples - 1}]"
             )
 
         # Get parameters for this sample
