@@ -230,7 +230,7 @@ def make_grid(input_dir, grid_dir, synthesizer_model_name):
     out_filename = f"{grid_dir}/{synthesizer_model_name}.hdf5"
 
     # Define base path
-    basepath = f"{input_dir}/bc03/" "models/Padova2000/chabrier/"
+    basepath = f"{input_dir}/bc03/models/Padova2000/chabrier/"
 
     # Define files
     files = [

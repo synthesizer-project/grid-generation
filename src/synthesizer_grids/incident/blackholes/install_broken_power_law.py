@@ -103,14 +103,14 @@ if __name__ == "__main__":
     out_filename = f"{args.grid_dir}/{model_name}.hdf5"
 
     # Define axes names
-    axes_names = [f"alpha{i+1}" for i, _ in enumerate(indices)]
+    axes_names = [f"alpha{i + 1}" for i, _ in enumerate(indices)]
 
     # Define axes descriptions
     axes_descriptions = {}
     for i, axis_name in enumerate(axes_names):
         axes_descriptions[axis_name] = (
             rf"The power-law slope between {edges_lam[i]} "
-            rf"\le \lambda/\AA < {edges_lam[i+1]}"
+            rf"\le \lambda/\AA < {edges_lam[i + 1]}"
         )
 
     # In this case the incident axes values are just the indices
