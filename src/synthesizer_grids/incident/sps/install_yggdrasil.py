@@ -54,8 +54,7 @@ def download_data(input_dir, ver, fcov):
     if not os.path.exists(save_path):
         # Create the directory
         print(
-            "Directory for downloading does not exist\n"
-            f"directory={save_path}"
+            f"Directory for downloading does not exist\ndirectory={save_path}"
         )
         os.makedirs(save_path)
         print("Directory created successfully!")

@@ -145,7 +145,7 @@ def create_cloudy_input(
         else:
             raise InconsistentParameter(
                 f"""ERROR: do not understand geometry choice:
-                {parameters['geometry']}"""
+                {parameters["geometry"]}"""
             )
 
     # If fixed ionisation parameter model is used:
@@ -156,7 +156,7 @@ def create_cloudy_input(
     else:
         raise InconsistentParameter(
             f"""ERROR: do not understand U model choice:
-            {parameters['ionisation_parameter_model']}"""
+            {parameters["ionisation_parameter_model"]}"""
         )
 
     # Set ionisation_parameter to provide cloudy

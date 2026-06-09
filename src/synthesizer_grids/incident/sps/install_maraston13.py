@@ -69,10 +69,7 @@ def make_grid(model, imf, input_dir, grid_dir):
     # at each point in spec convert the units
     for iZ, Z in enumerate(metallicities):
         for ia, age_Gyr in enumerate(ages_Gyr):
-            fn = (
-                f"{input_dir}/sed_M13.{imf_code[imf]}"
-                f"z{metallicity_codes[Z]}"
-            )
+            fn = f"{input_dir}/sed_M13.{imf_code[imf]}z{metallicity_codes[Z]}"
             print(iZ, ia, fn)
             ages_, _, lam_, llam_ = np.loadtxt(fn).T
 

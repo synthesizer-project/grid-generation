@@ -112,7 +112,7 @@ def make_single_alpha_grid(
     out_filename = f"{grid_dir}/{synthesizer_model_name}.hdf5"
 
     # input directory of this specific bpass model (hence the trailing "_")
-    input_dir_ = f'{input_dir}/{model["original_model_name"]}'
+    input_dir_ = f"{input_dir}/{model['original_model_name']}"
 
     # create metallicity grid and dictionary
     map_key_to_met = {
@@ -214,7 +214,7 @@ def make_full_grid(original_model_name, input_dir, grid_dir, bs="bin"):
     out_filename = f"{grid_dir}/{synthesizer_model_name}.hdf5"
 
     # input directory of this specific bpass model (hence the trailing "_")
-    input_dir_ = f'{input_dir}/{model["original_model_name"]}'
+    input_dir_ = f"{input_dir}/{model['original_model_name']}"
 
     # create metallicity grid and dictionary
     map_key_to_met = {

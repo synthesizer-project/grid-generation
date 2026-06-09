@@ -166,8 +166,7 @@ if __name__ == "__main__":
 
         # Define the cloudy input file
         input_file = (
-            f"{output_directory}/{incident_index}"
-            f"/{photoionisation_index}.in"
+            f"{output_directory}/{incident_index}/{photoionisation_index}.in"
         )
 
         # Define the cloudy executable path
