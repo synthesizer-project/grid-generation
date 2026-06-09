@@ -13,20 +13,20 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 
 
 def get_model_filename(model):
-    synthesizer_model_name = f'{model["sps_name"]}'
+    synthesizer_model_name = f"{model['sps_name']}"
 
     if model["sps_version"] is not False:
-        synthesizer_model_name += f'-{model["sps_version"]}'
+        synthesizer_model_name += f"-{model['sps_version']}"
 
     if model["sps_variant"] is not False:
-        synthesizer_model_name += f'-{model["sps_variant"]}'
+        synthesizer_model_name += f"-{model['sps_variant']}"
 
     # Mass limits label
     mass_limits_label = ",".join(
         map(lambda x: str(np.round(x, 2)), model["imf_masses"])
     )
 
-    synthesizer_model_name += f'_{model["imf_type"]}-{mass_limits_label}'
+    synthesizer_model_name += f"_{model['imf_type']}-{mass_limits_label}"
 
     # IMF slope label
     if model["imf_type"] == "bpl":
@@ -37,7 +37,7 @@ def get_model_filename(model):
 
     # If alpha varies then say so
     if model["alpha"] is not False:
-        synthesizer_model_name += f'_alpha{model["alpha"]}'
+        synthesizer_model_name += f"_alpha{model['alpha']}"
 
     # If high mass slope varies then say so
     if "high_mass_slopes" in list(model.keys()):

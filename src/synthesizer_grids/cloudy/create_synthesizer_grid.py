@@ -66,6 +66,12 @@ pluralisation_of_axes = {
     "stop_column_density": "column_densities",
     "alpha_enhancement": "alpha_enhancements",
     "reference_ionisation_parameter": "reference_ionisation_parameters",
+    "abundance_scalings.nitrogen_to_oxygen": (
+        "abundance_scalings.nitrogen_to_oxygen"
+    ),
+    "abundance_scalings.carbon_to_oxygen": (
+        "abundance_scalings.carbon_to_oxygen"
+    ),
 }
 
 
@@ -186,8 +192,6 @@ def create_empty_grid(
         attr_key="WeightVariable",
         data=weight_var,
     )
-
-    print(incident_grid._extract_axes)
 
     # Now write out the grid axes, we first do the incident grid axes so we
     # can extract their metadata and then any extras
@@ -408,7 +412,7 @@ def check_cloudy_runs(
                     )
 
                 # Print the indices and the last line of the cloudy out file
-                print(incident_index, photoionisation_index, last_line)
+                print("    ", incident_index, photoionisation_index, last_line)
 
     number_of_failed_models = len(failed_list)
 
@@ -666,14 +670,14 @@ def add_lines(
     lines["luminosity"] = np.empty((*new_shape, nlines))
 
     # ... but only save continuum values if spectra are provided.
-    if calculate_continuum:
-        continuum_quantities = [
-            "transmitted",
-            "incident",
-            "nebular_continuum",
-            "total_continuum",
-        ]
+    continuum_quantities = [
+        "transmitted",
+        "incident",
+        "nebular_continuum",
+        "total_continuum",
+    ]
 
+    if calculate_continuum:
         spectra_ = {}
 
         # Calculate incideted_contiuum
@@ -783,8 +787,8 @@ def add_lines(
     lines["luminosity"] *= erg / s
 
     # If continuum values are calculated add units
-    if calculate_continuum:
-        for continuum_quantity in continuum_quantities:
+    for continuum_quantity in continuum_quantities:
+        if continuum_quantity in lines:
             lines[continuum_quantity] *= erg / s / Hz
 
     # Write the lines out
@@ -829,7 +833,7 @@ if __name__ == "__main__":
         "--include-spectra",
         action="store_true",
         help="Should the spectra be included in the grid?",
-        default=True,
+        default=False,
         required=False,
     )
 
@@ -859,9 +863,9 @@ if __name__ == "__main__":
 
     print(" " * 80)
     print("-" * 80)
-    print(incident_grid_name)
-    print(cloudy_param_file)
-    print(extra_cloudy_param_file)
+    print("incident_grid_name:", incident_grid_name)
+    print("cloudy_param_file:", cloudy_param_file)
+    print("extra_cloudy_param_file:", extra_cloudy_param_file)
 
     # Check for extensions
     # Create _file and _name versions (with and w/o extensions)
@@ -899,8 +903,6 @@ if __name__ == "__main__":
         new_grid_name += "-" + extra_cloudy_param_name
 
     new_grid_file = new_grid_name + ".hdf5"
-    print(cloudy_param_name, cloudy_param_file)
-    print(new_grid_name, new_grid_file)
 
     # Open the incident grid using synthesizer
     incident_grid = Grid(
@@ -939,8 +941,12 @@ if __name__ == "__main__":
         fixed_photoionisation_params |= photoionisation_fixed_params_
         variable_photoionisation_params |= photoionisation_variable_params_
 
-    print(fixed_photoionisation_params)
-    print(variable_photoionisation_params)
+    print("fixed photoionisation parameters:")
+    for k, v in fixed_photoionisation_params.items():
+        print(f"    {k}: {v}")
+    print("variable photoionisation parameters:")
+    for k, v in variable_photoionisation_params.items():
+        print(f"    {k}: {v}")
 
     # If we have photoionisation parameters that vary we need to calculate the
     # model list
@@ -981,7 +987,6 @@ if __name__ == "__main__":
         new_axes += photoionisation_axes
         new_axes_values |= variable_photoionisation_params
 
-    print(new_axes)
     for key, value in new_axes_values.items():
         print(key, value)
 
@@ -1011,7 +1016,7 @@ if __name__ == "__main__":
     # recording failures with zeros in the spectra and line quantities. The
     # code will also save an array of failure flags.
 
-    # Now add spectra
+    # Now add spectra.
     if include_spectra:
         lam, spectra = add_spectra(
             new_grid,

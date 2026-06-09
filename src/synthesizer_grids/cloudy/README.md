@@ -59,7 +59,7 @@ python run_cloudy.py \
 
 ### Create synthesizer grid
 
-Finally, we need to create a new `synthesizer` grid object containing the cloudy computed lines and spectra. This is acheived by running `create_synthesizer_grid.py`.
+Finally, we need to create a new `synthesizer` grid object containing the cloudy computed lines and spectra. This is acheived by running `create_synthesizer_grid.py`. By default spectra are not extracted; if this is desired it necessary to add the `include_spectra` argument as below.
 
 ```
 python create_synthesizer_grid.py \
@@ -68,5 +68,6 @@ python create_synthesizer_grid.py \
   --cloudy-output-dir=/path/to/cloudy/outputs \
   --cloudy-paramfile=c23.01-sps \
   --cloudy-paramfile-extra=test_suite/reference_ionisation_parameter
+  --include_spectra \
 ```
 
