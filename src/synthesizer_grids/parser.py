@@ -168,7 +168,7 @@ class Parser(argparse.ArgumentParser):
     def _add_alpha_args(self):
         """Add arguments for alpha enhancement."""
         self.add_argument(
-            "--inidividual",
+            "--individual",
             "-i",
             action="store_true",
             help=(
