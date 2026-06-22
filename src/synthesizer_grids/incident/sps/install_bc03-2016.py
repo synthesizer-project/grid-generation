@@ -354,9 +354,12 @@ def make_grid(variant, imf_type, input_dir, out_filename):
     # Include the specific ionising photon luminosity
     out_grid.add_specific_ionising_lum()
 
+    # Add surviving mass to grid
     stellar_fraction = np.ones((len(ages), len(metallicities)))
     remnant_fraction = np.zeros((len(ages), len(metallicities)))
 
+    # Remnant mass fraction is stored in the 3color file
+    # as the 16th entry
     for ii, file in enumerate(files):
         file = file[:-10] + "3color"
         req_file = f"{input_dir}/{file}"
