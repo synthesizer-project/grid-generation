@@ -36,7 +36,7 @@ def extract_and_decompress_ised_files(directory):
 
     for root, dirs, files in os.walk(directory):
         for file in files:
-            if file.endswith(".ised.gz"):
+            if file.endswith(".ised.gz") or file.endswith(".3color.gz"):
                 gz_file_path = os.path.join(root, file)
                 new_file_path = os.path.join(input_dir, file)
                 with gzip.open(gz_file_path, "rb") as gz_file:
@@ -317,7 +317,7 @@ def make_grid(variant, imf_type, input_dir, out_filename):
     metallicities = out[1]
 
     ages = out[2]
-    ages[0] = 1e5
+    ages[0] = 1.0
 
     lam = out[3]
     nu = 3e8 / (lam * 1e-10)
@@ -353,6 +353,31 @@ def make_grid(variant, imf_type, input_dir, out_filename):
 
     # Include the specific ionising photon luminosity
     out_grid.add_specific_ionising_lum()
+
+    stellar_fraction = np.ones((len(ages), len(metallicities)))
+    remnant_fraction = np.zeros((len(ages), len(metallicities)))
+
+    for ii, file in enumerate(files):
+        file = file[:-10] + "3color"
+        req_file = f"{input_dir}/{file}"
+        data = np.genfromtxt(req_file, comments="#")
+        remnant_fraction[1:, ii] = data[:, 15]
+
+    stellar_fraction = 1.0 - remnant_fraction
+
+    # Write surviving and remnant datasets
+    out_grid.write_dataset(
+        "star_fraction",
+        stellar_fraction * dimensionless,
+        "Two-dimensional remaining stellar fraction grid, [age, Z]",
+        log_on_read=False,
+    )
+    out_grid.write_dataset(
+        "remnant_fraction",
+        remnant_fraction * dimensionless,
+        "Two-dimensional remaining remnant fraction grid, [age, Z]",
+        log_on_read=False,
+    )
 
 
 if __name__ == "__main__":
