@@ -30,8 +30,8 @@ from synthesizer_grids.parser import Parser
 
 
 def extract_and_decompress_ised_files(directory):
-    """Walk through the extracted directory and extract the ised files to the
-    top directory and delete anything else.
+    """Walk through the extracted directory and extract the ised and 3color
+    files to the top directory and delete anything else.
     """
 
     for root, dirs, files in os.walk(directory):
